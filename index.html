@@ -233,6 +233,16 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
   </div>
 </div>
 
+<div class="scrim" id="dlModal" hidden>
+  <div class="sheetbox" role="dialog" aria-modal="true" aria-labelledby="dlTitle" style="width:min(520px,100%)">
+    <h2 id="dlTitle">ファイルができました</h2>
+    <div class="sub" id="dlName"></div>
+    <div class="row end">
+      <button class="btn" id="dlClose" type="button">閉じる</button>
+      <a class="btn primary" id="dlLink" href="#" style="display:inline-flex;align-items:center;text-decoration:none">保存する</a>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast" hidden></div>
 
 <script>
@@ -471,6 +481,7 @@ document.getElementById("zOut").onclick=()=>{zoom=Math.max(0.4,+(scaleNow()/1.2)
 ["gesturestart","gesturechange","gestureend"].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
 document.addEventListener("touchmove",e=>{ if(e.touches.length>1) e.preventDefault(); },{passive:false});
 let lastTouchEnd=0; stage.addEventListener("touchend",e=>{ const n=Date.now(); if(n-lastTouchEnd<300) e.preventDefault(); lastTouchEnd=n; },{passive:false});
+document.getElementById("dlClose").onclick=()=>{document.getElementById("dlModal").hidden=true;};
 document.getElementById("fbClose").onclick=()=>{document.getElementById("fbModal").hidden=true; document.getElementById("fbText").hidden=true;};
 function sheetTsv(f){
   const F=f.fields, g=k=>(F[k]||"").replace(/[\t\n]/g," "), L=[];
@@ -790,8 +801,12 @@ async function saveFile(name,data,img){
     const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
     if(ios&&navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:name}); toast("保存先を選びました："+name); return; }
   }catch(e){ if(e&&e.name==="AbortError"){ toast("保存をやめました"); return; } }
-  try{ const u=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),60000); toast("保存しました："+name); }
-  catch(e){ fallback(img,"download"); }
+  // PC: making the file can take a few seconds, and browsers then block a download that is no longer
+  // tied to the click. So show a "ready" dialog; its button starts the download from a fresh tap.
+  const u=URL.createObjectURL(blob);
+  const m=document.getElementById("dlModal"), a=document.getElementById("dlLink");
+  a.href=u; a.download=name; document.getElementById("dlName").textContent=name; m.hidden=false; a.focus();
+  a.onclick=()=>{ setTimeout(()=>{ m.hidden=true; toast("保存しました："+name); },300); setTimeout(()=>URL.revokeObjectURL(u),120000); };
 }
 function fallback(img,code){
   const m=document.getElementById("fbModal");
