@@ -786,7 +786,9 @@ async function saveFile(name,data,img){
   const blob=new Blob([data],{type});
   try{
     const file=new File([blob],name,{type});
-    if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:name}); toast("保存先を選びました："+name); return; }
+    // iPad / iPhone: share sheet (Files, Box, mail). PC: plain download, no Windows/Mac share dialog
+    const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+    if(ios&&navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:name}); toast("保存先を選びました："+name); return; }
   }catch(e){ if(e&&e.name==="AbortError"){ toast("保存をやめました"); return; } }
   try{ const u=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),60000); toast("保存しました："+name); }
   catch(e){ fallback(img,"download"); }
