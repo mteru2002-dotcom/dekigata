@@ -173,6 +173,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
     <textarea id="txtArea" class="txt" hidden></textarea>
     <div class="choices" id="choices"></div>
     <div class="row end">
+      <button class="btn" id="tClear" hidden style="margin-right:auto">全部消す</button>
       <button class="btn" id="tCancel">キャンセル</button>
       <button class="btn primary" id="tOk">OK</button>
       <button class="btn primary" id="tNext" hidden>OKして下へ</button>
@@ -413,7 +414,8 @@ function drawSheet(ctx,k,f,opt){
   ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H);
   const F=f.fields||{};
   // fills
-  for(const c of CELLS){ if(c.fill){ctx.fillStyle=c.fill; ctx.fillRect(c.x,c.y,c.w,c.h);} }
+  // yellow = "write here" marker: shown while entering, left out of PDF/Excel
+  for(const c of CELLS){ if(c.fill && (opt.screen || c.fill!==C_IN)){ctx.fillStyle=c.fill; ctx.fillRect(c.x,c.y,c.w,c.h);} }
   if(opt.screen && opt.hl){ const c=BYKEY[opt.hl]; if(c){ctx.fillStyle="rgba(31,78,121,.18)";ctx.fillRect(c.x,c.y,c.w,c.h);} }
   // content
   ctx.textBaseline="middle"; ctx.fillStyle="#111";
@@ -534,6 +536,7 @@ function openText(c){
   L.forEach(t=>{const b=document.createElement("button");b.type="button";b.textContent=t;b.onclick=()=>{el.value=t;commitText(false);};choicesEl.appendChild(b);});
   choicesEl.hidden=!L.length;
   document.getElementById("tNext").hidden=!c.row;
+  document.getElementById("tClear").hidden=!c.num;
   tM.hidden=false; setTimeout(()=>{el.focus(); el.select&&el.select();},30);
 }
 function commitText(next){
@@ -547,6 +550,7 @@ function commitText(next){
 document.getElementById("tOk").onclick=()=>commitText(false);
 document.getElementById("tNext").onclick=()=>commitText(true);
 document.getElementById("tCancel").onclick=()=>{tM.hidden=true;closeHl();};
+document.getElementById("tClear").onclick=()=>{ const el=tCell&&tCell.multi?tArea:tIn; el.value=""; el.focus(); };
 tIn.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();commitText(!!tCell.row);}});
 
 
@@ -704,6 +708,7 @@ pad.addEventListener("touchstart",e=>e.preventDefault(),{passive:false});
 document.getElementById("pUndo").onclick=()=>{strokes.pop();recMan=false;drawPad();updSign();runRec();};
 document.getElementById("pClear").onclick=()=>{strokes=[];recMan=false;drawPad();updSign();runRec();};
 document.getElementById("pCancel").onclick=()=>{pM.hidden=true;closeHl();};
+
 function commitPad(next){
   const c=pCell; const key=c.kind==="sketch"?"sketch":c.key;
   const v=strokes.length?{s:strokes,w:padPenW,sign,neg:autoNeg()}:null;
@@ -826,7 +831,7 @@ function buildSheet(wb,name,f,mode){
   for(const c of CELLS){
     const tl=A(c.c1)+c.r1, br=A(c.c2)+c.r2; if(tl!==br) ws.mergeCells(`${tl}:${br}`);
     for(let r=c.r1;r<=c.r2;r++) for(let q=c.c1;q<=c.c2;q++){ const x=ws.getCell(A(q)+r);
-      if(c.fill) x.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF"+c.fill.slice(1)}};
+      if(c.fill && c.fill!==C_IN) x.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF"+c.fill.slice(1)}};
       if(c.border===1) x.border=B;
       if(c.border===2) x.border={top:r===c.r1?thin:undefined,bottom:r===c.r2?thin:undefined,left:q===c.c1?thin:undefined,right:q===c.c2?thin:undefined};
     }
