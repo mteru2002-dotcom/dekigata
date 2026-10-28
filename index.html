@@ -96,6 +96,29 @@ textarea.txt{min-height:96px;resize:vertical;line-height:1.4}
 .set-grid textarea{min-height:140px;font-size:15px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:400}
 fieldset{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0;min-width:0}
 legend{font-weight:700;font-size:14px;padding:0 4px}
+/* sketch editor */
+#skModal .sheetbox{width:100%;height:100%;padding:12px;gap:10px}
+.skhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.skmain{flex:1 1 auto;min-height:0;display:flex;gap:12px}
+#skArea{flex:1 1 auto;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
+#skPad{display:block;touch-action:none;background:#fff;border:2px solid #263a4e;border-radius:4px}
+.sktools{flex:none;width:300px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:2px}
+.skgrp{display:flex;flex-direction:column;gap:6px}
+.sklab{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tgrid button,.skrow button,.skrow label.btn{min-height:44px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:14px;padding:0 6px}
+.tgrid button,.skrow button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.tgrid button.cont{background:#c2410c!important;border-color:#c2410c!important;color:#fff!important}
+.tgrid button[aria-pressed="true"],.skrow button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:700}
+.skrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.skcol{width:40px;height:40px;border-radius:50%;border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line);cursor:pointer}
+.skcol[aria-pressed="true"]{box-shadow:0 0 0 3px var(--accent)}
+.skrow .skcol{border-radius:50%;min-height:0;padding:0;width:40px;height:40px}
+.skrow [data-w]{min-width:60px}
+#skColors{padding:3px}
+.sknote{font-size:12px;color:var(--muted)}
+#skZoom{font-size:13px;color:var(--muted);min-width:3.5em;text-align:center;font-variant-numeric:tabular-nums}
+@media (max-width:760px){.skmain{flex-direction:column}.sktools{width:auto;max-height:40%}}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);
   padding:10px 16px;border-radius:10px;z-index:30;font-size:14px;max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:no-preference){.toast{transition:opacity .2s}}
@@ -103,7 +126,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 
 <div class="bar">
   <div class="bar-row">
-    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v7</span></span>
+    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v15</span></span>
     <select id="formSel" class="formsel" aria-label="帳票を選ぶ"></select>
     <div class="grp">
       <button class="btn sm" id="bNew">新規</button>
@@ -163,6 +186,63 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
         <button class="btn primary" id="pNext">OKして下へ</button>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="scrim" id="skModal" hidden>
+  <div class="sheetbox" role="dialog" aria-modal="true" aria-labelledby="skTitle">
+    <div class="skhead">
+      <div><h2 id="skTitle">略図</h2><div class="sub" id="skHint">ペンで描きます。2本指で拡大・移動できます。方眼は印刷されません。</div></div>
+      <div class="row"><button class="btn" id="skCancel">キャンセル</button><button class="btn primary" id="skOk">OK</button></div>
+    </div>
+    <div class="skmain">
+      <div id="skArea"><canvas id="skPad"></canvas></div>
+      <div class="sktools">
+        <div class="skgrp"><span class="sklab">道具</span>
+          <div class="tgrid" id="skTools">
+            <button data-tool="pen">ペン</button><button data-tool="line">直線</button><button data-tool="arrow">矢印</button>
+            <button data-tool="dim">寸法線</button><button data-tool="rect">四角</button><button data-tool="ellipse">丸</button>
+            <button data-tool="text">文字</button><button data-tool="pt" id="skPtBtn">測点</button><button data-tool="eraser">消しゴム</button>
+          </div>
+          <div class="sknote" id="skToolNote"></div>
+        </div>
+        <div class="skgrp"><span class="sklab">色</span><div class="skrow" id="skColors"></div></div>
+        <div class="skgrp"><span class="sklab">太さ・文字の大きさ</span><div class="skrow"><button data-w="0.004">細</button><button data-w="0.007">中</button><button data-w="0.012">太</button></div></div>
+        <div class="skgrp"><span class="sklab">選択・グループ</span>
+          <div class="skrow"><button id="skGroup" aria-pressed="false">グループ化</button></div>
+          <span class="sknote" id="skSelNote"></span>
+        </div>
+        <div class="skgrp"><span class="sklab">吸着</span>
+          <div class="skrow"><button id="skOSnap" aria-pressed="true">スナップ</button><button id="skGSnap" aria-pressed="true">グリッド吸着</button></div>
+        </div>
+        <div class="skgrp"><span class="sklab">表示</span>
+          <div class="skrow"><button id="skGrid" aria-pressed="true">方眼</button><button id="skZOut" aria-label="縮小">－</button><span id="skZoom">100%</span><button id="skZIn" aria-label="拡大">＋</button><button id="skZFit">全体</button></div>
+        </div>
+        <div class="skgrp"><span class="sklab">画像</span>
+          <div class="skrow">
+            <label class="btn" for="skCam" style="display:inline-flex;align-items:center">写真を撮る</label><input type="file" id="skCam" accept="image/*" capture="environment" hidden>
+            <label class="btn" for="skFile" style="display:inline-flex;align-items:center">画像を選ぶ</label><input type="file" id="skFile" accept="image/*" hidden>
+            <button id="skImgMove" data-tool="img">画像を動かす</button><button id="skImgDel">画像を外す</button>
+          </div>
+          <label class="skrow sknote" id="skSizeRow">大きさ <input type="range" id="skSize" min="20" max="400" value="100" style="flex:1"> <span id="skSizeV">100%</span></label>
+        </div>
+        <div class="skgrp"><div class="skrow"><button id="skUndo">1つ戻す</button><button id="skRedo">1つ進む</button><button id="skClear">描いたものを全部消す</button></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="skTxtModal" hidden>
+  <div class="sheetbox" role="dialog" aria-modal="true" aria-labelledby="skTxtTitle" style="width:min(520px,100%)">
+    <h2 id="skTxtTitle">文字</h2>
+    <textarea id="skTxtIn" class="txt" style="min-height:80px"></textarea>
+    <div id="skDimOpts" class="skgrp" hidden>
+      <span class="sklab">寸法線の位置</span>
+      <div class="skrow"><button class="btn" id="skDimFlip" type="button">反対側へ</button>
+        <label class="skrow sknote" id="skDimOffRow" style="flex:1">図形からの距離 <input type="range" id="skDimOff" min="10" max="250" value="45" style="flex:1"></label></div>
+      <span class="sknote">寸法の数値（例：3,000）を入れてください。空のままでもかまいません。</span>
+    </div>
+    <div class="row end"><button class="btn danger" id="skTxtDel" style="margin-right:auto">消す</button><button class="btn" id="skTxtCancel">キャンセル</button><button class="btn primary" id="skTxtOk">OK</button></div>
   </div>
 </div>
 
@@ -331,17 +411,17 @@ function setSync(){
 const base=()=>`data/users/${uid}`;
 const fdoc=id=>db.doc(`${base()}/f_${id}`);
 const idoc=(id,k)=>fdoc(id).collection("ink").doc(k);
-function encInk(v){const o={s:v.s.map(a=>a.join(",")).join(";"),w:v.w,sign:v.sign||"auto",neg:!!v.neg}; if(v.val!=null) o.val=v.val; if(v.man) o.man=true; if(v.low) o.low=true; return o;}
-function decInk(d){return {s:(d.s?String(d.s).split(";"):[]).filter(Boolean).map(t=>t.split(",").map(Number)),w:d.w||0.009,sign:d.sign||"auto",neg:!!d.neg,val:d.val!=null?String(d.val):undefined,man:!!d.man,low:!!d.low};}
+function encInk(v){ if(v&&v.items) return {items:JSON.stringify(v.items),v:2}; const o={s:v.s.map(a=>a.join(",")).join(";"),w:v.w,sign:v.sign||"auto",neg:!!v.neg}; if(v.val!=null) o.val=v.val; if(v.man) o.man=true; if(v.low) o.low=true; return o;}
+function decInk(d){ if(d&&d.items){ try{return {items:JSON.parse(d.items),v:2};}catch(_){return {items:[],v:2};} } return {s:(d.s?String(d.s).split(";"):[]).filter(Boolean).map(t=>t.split(",").map(Number)),w:d.w||0.009,sign:d.sign||"auto",neg:!!d.neg,val:d.val!=null?String(d.val):undefined,man:!!d.man,low:!!d.low};}
 function cloudForm(f){ if(!cloudOK) return; const body={created:f.created,updated:f.updated,fields:f.fields,hasImg:!!f.img}; enqueue("f:"+f.id,()=>fdoc(f.id).set(body)); }
 function cloudInk(f,k){ if(!cloudOK) return; const v=f.ink[k]; enqueue(`i:${f.id}:${k}`,()=> v&&v.s.length? idoc(f.id,k).set(encInk(v)) : idoc(f.id,k).delete()); }
-function cloudImg(f){ if(!cloudOK) return; const d=f.img; enqueue(`img:${f.id}`,()=> d? idoc(f.id,"sketchimg").set({data:d}) : idoc(f.id,"sketchimg").delete()); }
+function cloudImg(f){ if(!cloudOK) return; const d=f.img, t=f.imgT?JSON.stringify(f.imgT):""; enqueue(`img:${f.id}`,()=> d? idoc(f.id,"sketchimg").set({data:d,t}) : idoc(f.id,"sketchimg").delete()); }
 function cloudPrefs(){ if(!cloudOK) return; const p=JSON.parse(JSON.stringify(prefs)); enqueue("prefs",()=>db.doc(`${base()}/prefs`).set(p)); }
 function cloudPushAll(f){ cloudForm(f); Object.keys(f.ink).forEach(k=>cloudInk(f,k)); if(f.img) cloudImg(f); }
 async function cloudFetch(id){
   const snap=await fdoc(id).collection("ink").get(); const ink={}; let img=null;
-  snap.docs.forEach(d=>{const v=d.data(); if(d.id==="sketchimg") img=v.data||null; else ink[d.id]=decInk(v);});
-  return {ink,img};
+  let imgT=null; snap.docs.forEach(d=>{const v=d.data(); if(d.id==="sketchimg"){ img=v.data||null; try{imgT=v.t?JSON.parse(v.t):null;}catch(_){} } else ink[d.id]=decInk(v);});
+  return {ink,img,imgT};
 }
 async function initCloud(){
   try{
@@ -372,7 +452,7 @@ async function openForm(id){
   let f=forms[id]; if(!f) return;
   if(!f.loaded && cloudOK){
     setHint("クラウドから読み込み中…");
-    try{const {ink,img}=await cloudFetch(id); f.ink=ink; f.img=img; f.loaded=true; saveLocal(f);}catch(e){setHint("読み込みに失敗しました。通信状態を確認して、もう一度選んでください。");}
+    try{const {ink,img,imgT}=await cloudFetch(id); f.ink=ink; f.img=img; f.imgT=imgT; f.loaded=true; saveLocal(f);}catch(e){setHint("読み込みに失敗しました。通信状態を確認して、もう一度選んでください。");}
     setHint();
   }
   cur=f; lsSet("cur",id); fillSel(); render();
@@ -445,9 +525,9 @@ function drawSheet(ctx,k,f,opt){
     }
     if(c.t==="ink"){
       if(c.kind==="sketch"){
-        const im=getImg(f.img); if(im){ctx.save(); ctx.beginPath(); ctx.rect(c.x+1,c.y+1,c.w-2,c.h-2); ctx.clip(); drawContain(ctx,im,c.x+2,c.y+2,c.w-4,c.h-4); ctx.restore();}
-        drawInk(ctx,f.ink.sketch,c.x,c.y,c.w,c.h,"#111",1.1);
-        if(opt.screen && !im && !(f.ink.sketch&&f.ink.sketch.s.length)){ctx.font=`${rpx(10)}px ${FONT}`;ctx.fillStyle="#8a96a3";ctx.textAlign="center";ctx.fillText("タップして略図を描く・画像を貼る",c.x+c.w/2,c.y+c.h/2);ctx.fillStyle="#111";}
+        const its=skItemsOf(f), im=getImg(f.img);
+        drawSketch(ctx,{img:f.img,imgT:f.imgT,items:its},c.x,c.y,c.w,c.h,{grid:!!opt.screen,minW:1.1});
+        if(opt.screen && !im && !its.length){ctx.font=`${rpx(10)}px ${FONT}`;ctx.fillStyle="#8a96a3";ctx.textAlign="center";ctx.fillText("タップして略図を描く・画像を貼る",c.x+c.w/2,c.y+c.h/2);ctx.fillStyle="#111";}
       } else if(opt.vals){ const r=cellVal(c,f.ink[c.key]); if(r){ ctx.font=`${rpx(10)}px ${FONT}`; ctx.textAlign="right"; ctx.fillStyle=r.num==null?"#b45309":inkColor(c,f.ink[c.key]);
           const t=r.num==null?"？":(r.text.replace(/^(-?)(\d+)/,(m,sg,ii)=>sg+ii.replace(/\B(?=(\d{3})+(?!\d))/g,","))); ctx.fillText(t,c.x+c.w-4,c.y+c.h/2);
           if(r.low){ctx.fillStyle="#d97706";ctx.beginPath();ctx.arc(c.x+5,c.y+5,2.6,0,7);ctx.fill();} ctx.fillStyle="#111"; } }
@@ -530,7 +610,7 @@ cv.addEventListener("click",e=>{
   const c=CELLS.find(c=>c.key&&(c.edit||c.t==="ink")&&x>=c.x&&x<c.x+c.w&&y>=c.y&&y<c.y+c.h); if(!c) return;
   openCell(c);
 });
-function openCell(c){ hl=c.key; render(); if(c.t==="ink") openPad(c); else openText(c); }
+function openCell(c){ hl=c.key; render(); if(c.kind==="sketch") openSketch(c); else if(c.t==="ink") openPad(c); else openText(c); }
 function below(c){ if(!c.row||c.row>=30) return null; return BYKEY[c.key.replace(/^([LR])\d+_/,`$1${c.row+1}_`)]||null; }
 function closeHl(){ hl=null; render(); }
 
@@ -741,6 +821,391 @@ function shrinkImage(file){return new Promise((res,rej)=>{const fr=new FileReade
     const x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height); x.drawImage(im,0,0,c.width,c.height); out=c.toDataURL("image/jpeg",q); if(out.length<230000) break; side*=0.8; q=Math.max(0.6,q-0.05);}
   res(out);}; im.src=fr.result;}; fr.readAsDataURL(file);});}
 
+
+/* ================= sketch (略図) ================= */
+// items: {t:pen|line|arrow|dim|rect|ellipse|text|pt, c:color, w:width(÷box width), p:[x,y,...] in 0..1000 of the box, s:text, n:number, fs:size(÷box height)}
+function skItemsOf(f){ const v=f.ink&&f.ink.sketch; if(!v) return []; if(v.items) return v.items; if(v.s) return v.s.map(a=>({t:"pen",c:"#111111",w:v.w||0.009,p:a.slice()})); return []; }
+const FS_OF={0.004:0.026,0.007:0.032,0.012:0.042};
+function drawItems(ctx,items,x,y,w,h,minW){
+  const X=v=>x+v/1000*w, Y=v=>y+v/1000*h;
+  ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round";
+  for(const it of items){
+    const lw=Math.max((it.w||0.007)*w,minW); ctx.lineWidth=lw; ctx.strokeStyle=ctx.fillStyle=it.c||"#111";
+    const p=it.p;
+    if(it.t==="pen"){ drawStroke(ctx,p,x,y,w,h); continue; }
+    if(it.t==="dim"){ drawDim(ctx,it,X,Y,w,h,lw); continue; }
+    if(it.t==="line"||it.t==="arrow"){
+      const x1=X(p[0]),y1=Y(p[1]),x2=X(p[2]),y2=Y(p[3]); ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      const hs=Math.max(lw*4,w*0.025);
+      const head=(ax,ay,bx,by)=>{const a=Math.atan2(ay-by,ax-bx); ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax-hs*Math.cos(a-0.4),ay-hs*Math.sin(a-0.4)); ctx.lineTo(ax-hs*Math.cos(a+0.4),ay-hs*Math.sin(a+0.4)); ctx.closePath(); ctx.fill();};
+      if(it.t==="arrow") head(x2,y2,x1,y1); continue;
+    }
+    if(it.t==="rect"){ const a=X(Math.min(p[0],p[2])),b=Y(Math.min(p[1],p[3])); ctx.strokeRect(a,b,Math.abs(X(p[2])-X(p[0])),Math.abs(Y(p[3])-Y(p[1]))); continue; }
+    if(it.t==="ellipse"){ const cx=(X(p[0])+X(p[2]))/2, cy=(Y(p[1])+Y(p[3]))/2, rx=Math.abs(X(p[2])-X(p[0]))/2, ry=Math.abs(Y(p[3])-Y(p[1]))/2; ctx.beginPath(); ctx.ellipse(cx,cy,Math.max(rx,0.5),Math.max(ry,0.5),0,0,Math.PI*2); ctx.stroke(); continue; }
+    if(it.t==="text"){ const fs=(it.fs||0.03)*h; ctx.font=`700 ${fs}px ${FONT}`; ctx.textAlign="left"; ctx.textBaseline="middle"; String(it.s||"").split("\n").forEach((L,i)=>ctx.fillText(L,X(p[0]),Y(p[1])+i*fs*1.2)); continue; }
+    if(it.t==="pt"){ const fs=(it.fs||0.03)*h, r=fs*0.78; ctx.lineWidth=Math.max(fs*0.08,minW); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(X(p[0]),Y(p[1]),r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=it.c||"#111"; const t=String(it.n); ctx.font=`700 ${fs*(t.length>2?0.62:t.length>1?0.8:0.95)}px ${FONT}`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(t,X(p[0]),Y(p[1])+fs*0.04); continue; }
+  }
+  ctx.restore();
+}
+// dimension: measured points A,B; extension lines start a small gap away from the object and run a bit past the
+// dimension line; dimension line with arrows at both ends; text in the middle on the outer side
+function dimGeom(it,X,Y,w){
+  const p=it.p, ax=X(p[0]),ay=Y(p[1]),bx=X(p[2]),by=Y(p[3]); const L=Math.hypot(bx-ax,by-ay)||1;
+  const ux=(bx-ax)/L, uy=(by-ay)/L, nx=-uy, ny=ux; const raw=(it.o!=null?it.o:-45), o=it.circ?0:raw/1000*w, sg=raw<0?-1:1, oa=Math.abs(o);
+  const gap=Math.min(0.012*w,oa*0.4), ext=0.012*w;
+  return {ax,ay,bx,by,ux,uy,nx:nx*sg,ny:ny*sg,oa,gap,ext,
+    d1:[ax+nx*o,ay+ny*o], d2:[bx+nx*o,by+ny*o]};
+}
+function drawDim(ctx,it,X,Y,w,h,lw){
+  const g=dimGeom(it,X,Y,w), thin=Math.max(lw*0.6,0.5);
+  ctx.lineWidth=thin; ctx.beginPath(); if(!it.circ)
+  for(const [px,py] of [[g.ax,g.ay],[g.bx,g.by]]){ ctx.moveTo(px+g.nx*g.gap,py+g.ny*g.gap); ctx.lineTo(px+g.nx*(g.oa+g.ext),py+g.ny*(g.oa+g.ext)); }
+  ctx.stroke();
+  ctx.lineWidth=lw; ctx.beginPath(); ctx.moveTo(...g.d1); ctx.lineTo(...g.d2); ctx.stroke();
+  const hs=Math.max(lw*4,w*0.022);
+  const head=(ax,ay,bx,by)=>{const a=Math.atan2(ay-by,ax-bx); ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax-hs*Math.cos(a-0.35),ay-hs*Math.sin(a-0.35)); ctx.lineTo(ax-hs*Math.cos(a+0.35),ay-hs*Math.sin(a+0.35)); ctx.closePath(); ctx.fill();};
+  if(it.cen!=="b") head(...g.d2,...g.d1); if(it.cen!=="a") head(...g.d1,...g.d2); // circle radius: no arrow at the centre
+  if(it.s){ const fs=(it.fs||0.03)*h; let a=Math.atan2(g.uy,g.ux); if(a>Math.PI/2-0.01) a-=Math.PI; if(a<-Math.PI/2-0.01) a+=Math.PI;
+    let mx=(g.d1[0]+g.d2[0])/2+g.nx*fs*0.62, my=(g.d1[1]+g.d2[1])/2+g.ny*fs*0.62;
+    if(Math.abs(g.uy)>0.85){ // up-down dimension: keep the value level (reads left to right), set beside the line
+      ctx.font=`700 ${fs}px ${FONT}`; const tw=ctx.measureText(String(it.s)).width; a=0;
+      mx=(g.d1[0]+g.d2[0])/2+g.nx*(tw/2+fs*0.35); my=(g.d1[1]+g.d2[1])/2+g.ny*(fs*0.62); }
+    ctx.save(); ctx.translate(mx,my); ctx.rotate(a); ctx.font=`700 ${fs}px ${FONT}`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(String(it.s),0,0); ctx.restore(); }
+}
+function drawGrid(ctx,x,y,w,h,lw){
+  const g=w/24; ctx.save(); ctx.strokeStyle="rgba(110,135,160,.42)"; ctx.lineWidth=lw; ctx.setLineDash([lw*4,lw*4]); ctx.beginPath();
+  for(let i=1;i*g<w-0.5;i++){ctx.moveTo(x+i*g,y);ctx.lineTo(x+i*g,y+h);} for(let j=1;j*g<h-0.5;j++){ctx.moveTo(x,y+j*g);ctx.lineTo(x+w,y+j*g);}
+  ctx.stroke(); ctx.restore();
+}
+function drawImgT(ctx,src,t,x,y,w,h){
+  const im=getImg(src); if(!im) return; t=t||{cx:500,cy:500,s:1};
+  const s0=Math.min(w/im.naturalWidth,h/im.naturalHeight)*(t.s||1), dw=im.naturalWidth*s0, dh=im.naturalHeight*s0;
+  ctx.drawImage(im,x+t.cx/1000*w-dw/2,y+t.cy/1000*h-dh/2,dw,dh);
+}
+function drawSketch(ctx,d,x,y,w,h,opt){
+  ctx.save(); ctx.beginPath(); ctx.rect(x+0.5,y+0.5,w-1,h-1); ctx.clip();
+  if(d.img) drawImgT(ctx,d.img,d.imgT,x,y,w,h);
+  if(opt.grid) drawGrid(ctx,x,y,w,h,opt.gridW||0.6);
+  drawItems(ctx,d.items||[],x,y,w,h,opt.minW||1);
+  ctx.restore();
+}
+const SK={cont:false,selSet:[],fut:[],snapAt:null,snapK:null,snap:true,gsnap:true,sel:null,tool:"move",color:"#111111",w:0.004,grid:true,z:1,ox:0,oy:0,items:[],img:null,imgT:null,hist:[],cw:0,ch:0,dpr:1,cell:null,live:null};
+const skM=document.getElementById("skModal"), skCv=document.getElementById("skPad"), skX=skCv.getContext("2d"), skArea=document.getElementById("skArea");
+const SKCOL=[["#111111","黒"],["#C62828","赤"],["#1d4ed8","青"],["#2e7d32","緑"]];
+const TOOLNOTE={pen:"自由に描きます。",line:"なぞった始点と終点を結びます。端点・中点・丸の8分点（四半点と45°の点）に吸い付き、水平・垂直・45°に近いとそろえます。",arrow:"最初にタッチした所が矢印の先になり、引っぱった方へ伸びます。",dim:"測りたい2点をなぞると、寸法補助線つきの寸法線を引き、数値を入れる画面が出ます。引いた寸法線をタップすると直せます。",move:"選択モード：図形をタップで選択（もう一度で外す）、引っぱると移動、何もない所をなぞると囲んで選択、タップで選択をやめます。道具は1回押すと1回だけ、2回続けて押すと連続で使えます。",rect:"対角をなぞると四角を描きます。",ellipse:"なぞると正円を描きます。楕円にするときは、描いたあとに四半点の□で伸ばします。",text:"文字を置く位置をタップします。置いた文字をタップすると直せます。",pt:"タップした位置に測点番号を置きます。番号は自動で増えます。",eraser:"消したい線や文字をなぞると、まとめて消えます。",img:"画像をドラッグして位置を合わせます。大きさは下のつまみで変えます。"};
+function nextPt(){ return SK.items.reduce((m,it)=>it.t==="pt"?Math.max(m,it.n||0):m,0)+1; }
+function skPaintTools(){
+  document.querySelectorAll("#skTools [data-tool], #skImgMove").forEach(b=>{ if(!b.dataset.label) b.dataset.label=b.textContent; const on=b.dataset.tool===SK.tool;
+    b.setAttribute("aria-pressed",String(on)); b.classList.toggle("cont",on&&SK.cont); b.textContent=(b.id==="skPtBtn"?"測点 "+nextPt():b.dataset.label)+(on&&SK.cont?" 連続":""); });
+  document.querySelectorAll("#skColors .skcol").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.c===SK.color)));
+  document.querySelectorAll("[data-w]").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.w===SK.w)));
+  document.getElementById("skGrid").setAttribute("aria-pressed",String(SK.grid));
+  { const ss=selLive(), grouped=ss.length>1&&ss.every(it=>it.g&&it.g===ss[0].g), gb=document.getElementById("skGroup");
+    gb.setAttribute("aria-pressed",String(grouped)); gb.textContent=grouped?"グループ化中":"グループ化"; gb.disabled=!grouped&&ss.length<2;
+    document.getElementById("skSelNote").textContent=ss.length?(ss.length+"個を選択中"+(grouped?"（グループ）":ss.some(it=>it.g)?"（グループを含む）":"")):"「移動」でタップすると1つずつ選べます。何もない所をタップすると選択をやめます。"; }
+  document.getElementById("skOSnap").setAttribute("aria-pressed",String(SK.snap)); document.getElementById("skGSnap").setAttribute("aria-pressed",String(SK.gsnap));
+  document.getElementById("skZoom").textContent=Math.round(SK.z*100)+"%";
+  document.getElementById("skToolNote").textContent=TOOLNOTE[SK.tool]||"";
+  const has=!!SK.img; ["skImgMove","skImgDel"].forEach(id=>document.getElementById(id).disabled=!has); document.getElementById("skSizeRow").hidden=!has;
+  const pc=Math.round((SK.imgT?SK.imgT.s:1)*100); document.getElementById("skSize").value=pc; document.getElementById("skSizeV").textContent=pc+"%";
+}
+(function(){ const box=document.getElementById("skColors"); SKCOL.forEach(([c,n])=>{const b=document.createElement("button"); b.className="skcol"; b.dataset.c=c; b.style.background=c; b.setAttribute("aria-label",n); b.onclick=()=>{SK.color=c;skPaintTools();}; box.appendChild(b);}); })();
+let skLastTap={t:null,at:0};
+document.querySelectorAll("#skTools [data-tool], #skImgMove").forEach(b=>b.onclick=()=>{
+  const t=b.dataset.tool, now=Date.now(), dbl=skLastTap.t===t&&now-skLastTap.at<450; skLastTap={t,at:now};
+  if(SK.cont&&SK.tool===t){ SK.tool="move"; SK.cont=false; skLastTap={t:null,at:0}; }
+  else if(dbl&&SK.tool===t){ SK.cont=true; }
+  else if(SK.tool===t){ SK.tool="move"; SK.cont=false; }
+  else { SK.tool=t; SK.cont=false; }
+  skPaintTools(); skDraw(); });
+// a fast double tap can arrive as one click + dblclick on iPad: treat dblclick as "continuous" for every tool
+document.querySelectorAll("#skTools [data-tool], #skImgMove").forEach(b=>b.addEventListener("dblclick",e=>{ e.preventDefault(); SK.tool=b.dataset.tool; SK.cont=true; skLastTap={t:null,at:0}; skPaintTools(); skDraw(); }));
+function skDone(){ if(!SK.cont&&SK.tool!=="move"){ SK.tool="move"; } } // one-shot tools hand back to select mode
+document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{SK.w=+b.dataset.w; skPaintTools();});
+function openSketch(c){
+  SK.cell=c; SK.items=JSON.parse(JSON.stringify(skItemsOf(cur))); SK.img=cur.img||null; SK.imgT=cur.imgT?Object.assign({},cur.imgT):{cx:500,cy:500,s:1};
+  SK.hist=[]; SK.fut=[]; SK.z=1; SK.ox=0; SK.oy=0; SK.live=null; SK.tool="move"; SK.cont=false;
+  skM.hidden=false; skSize(); skPaintTools(); skHistBtns(); skDraw();
+}
+function skSize(){
+  const a=SK.cell.w/SK.cell.h; const aw=skArea.clientWidth-8, ah=skArea.clientHeight-8;
+  let w=aw, h=w/a; if(h>ah){h=ah;w=h*a;}
+  SK.cw=Math.max(50,Math.round(w)); SK.ch=Math.max(50,Math.round(h)); SK.dpr=Math.min(window.devicePixelRatio||1,3);
+  skCv.style.width=SK.cw+"px"; skCv.style.height=SK.ch+"px"; skCv.width=Math.round(SK.cw*SK.dpr); skCv.height=Math.round(SK.ch*SK.dpr); skClamp();
+}
+window.addEventListener("resize",()=>{ if(!skM.hidden){ skSize(); skDraw(); } });
+function skClamp(){ SK.z=Math.max(1,Math.min(5,SK.z)); SK.ox=Math.max(0,Math.min(SK.cw*SK.z-SK.cw,SK.ox)); SK.oy=Math.max(0,Math.min(SK.ch*SK.z-SK.ch,SK.oy)); }
+function skDraw(){
+  const d=SK.dpr; skX.setTransform(1,0,0,1,0,0); skX.fillStyle="#fff"; skX.fillRect(0,0,skCv.width,skCv.height);
+  skX.setTransform(d*SK.z,0,0,d*SK.z,-SK.ox*d,-SK.oy*d);
+  const items=SK.live?SK.items.concat([SK.live]):SK.items;
+  drawSketch(skX,{img:SK.img,imgT:SK.imgT,items},0,0,SK.cw,SK.ch,{grid:SK.grid,gridW:1/SK.z,minW:1.2/SK.z});
+  drawHandles(); drawBand();
+  if(SK.snapAt){ const x=SK.snapAt[0]/1000*SK.cw, y=SK.snapAt[1]/1000*SK.ch; skX.save(); skX.strokeStyle="#e8590c"; skX.lineWidth=2/SK.z;
+    if(SK.snapK==="grid"){ const r=4/SK.z; skX.beginPath(); skX.arc(x,y,r,0,Math.PI*2); skX.stroke(); } else { const r=7/SK.z; skX.strokeRect(x-r,y-r,r*2,r*2); } skX.restore(); }
+  skX.setTransform(1,0,0,1,0,0); document.getElementById("skZoom").textContent=Math.round(SK.z*100)+"%";
+}
+function skPt(e){ const r=skCv.getBoundingClientRect(); const px=e.clientX-r.left, py=e.clientY-r.top;
+  return [Math.round(((px+SK.ox)/SK.z)/SK.cw*1000), Math.round(((py+SK.oy)/SK.z)/SK.ch*1000)]; }
+function skSnap(){ return JSON.stringify({items:SK.items,img:SK.img,imgT:SK.imgT}); }
+function skPush(){ SK.hist.push(skSnap()); if(SK.hist.length>80) SK.hist.shift(); SK.fut=[]; skHistBtns(); }
+function skRestore(h){ const o=JSON.parse(h); SK.items=o.items; SK.img=o.img; SK.imgT=o.imgT; SK.selSet=[]; }
+function skHistBtns(){ const u=document.getElementById("skUndo"), r=document.getElementById("skRedo"); if(u) u.disabled=!SK.hist.length; if(r) r.disabled=!(SK.fut&&SK.fut.length); }
+function snapLine(p){ // pull near-horizontal / vertical / 45° lines straight (in real proportions)
+  const a=SK.cell.w/SK.cell.h; const dx=(p[2]-p[0])*a, dy=p[3]-p[1]; const L=Math.hypot(dx,dy); if(L<1) return p;
+  const ang=Math.atan2(dy,dx), st=Math.PI/4, k=Math.round(ang/st); if(Math.abs(ang-k*st)>0.11) return p;
+  const na=k*st; return [p[0],p[1],Math.round(p[0]+Math.cos(na)*L/a),Math.round(p[1]+Math.sin(na)*L)];
+}
+// snap targets: line/arrow ends + middle, dimension points, rectangle corners + edge middles + centre,
+// circle quadrant points + centre, measuring-point marks, freehand line ends
+function anchorsOf(it){ // [x,y,kind] points of one item that others can snap to
+  const A=[], p=it.p, add=(x,y,k)=>A.push([x,y,k||"p"]);
+  if(it.t==="line"||it.t==="arrow"){ add(p[0],p[1]); add(p[2],p[3]); add((p[0]+p[2])/2,(p[1]+p[3])/2,"m"); }
+  else if(it.t==="dim"){ add(p[0],p[1]); add(p[2],p[3]); }
+  else if(it.t==="rect"){ const a=Math.min(p[0],p[2]),b=Math.min(p[1],p[3]),c=Math.max(p[0],p[2]),d=Math.max(p[1],p[3]),mx=(a+c)/2,my=(b+d)/2;
+    add(a,b);add(c,b);add(c,d);add(a,d);add(mx,b,"m");add(c,my,"m");add(mx,d,"m");add(a,my,"m");add(mx,my,"c"); }
+  else if(it.t==="ellipse"){ const a=Math.min(p[0],p[2]),b=Math.min(p[1],p[3]),c=Math.max(p[0],p[2]),d=Math.max(p[1],p[3]),mx=(a+c)/2,my=(b+d)/2;
+    add(mx,b,"q");add(c,my,"q");add(mx,d,"q");add(a,my,"q");add(mx,my,"c");
+    const rx=(c-a)/2, ry=(d-b)/2, k=Math.SQRT1_2; add(mx+rx*k,my-ry*k,"o");add(mx+rx*k,my+ry*k,"o");add(mx-rx*k,my+ry*k,"o");add(mx-rx*k,my-ry*k,"o"); } // eighth points (45°)
+  else if(it.t==="pt"||it.t==="text"){ add(p[0],p[1]); }
+  else if(it.t==="pen"&&p.length>=4){ add(p[0],p[1]); add(p[p.length-2],p[p.length-1]); }
+  return A;
+}
+// handles of a selected item (0..1000 box coords): line ends, rectangle/circle corners,
+// freehand bounding-box corners, and a size handle for text and measuring points
+function textBox(it){ const H_=SK.ch, fs=(it.fs||0.03)*H_; skX.save(); skX.font=`700 ${fs}px ${FONT}`; const L=String(it.s||"").split("\n"); const w=Math.max(1,...L.map(l=>skX.measureText(l).width)); skX.restore();
+  return {w:w/SK.cw*1000, h:(L.length*fs*1.2)/SK.ch*1000, top:(it.p[1]-fs*0.6/SK.ch*1000)}; }
+function bbox(p){ let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9; for(let i=0;i<p.length;i+=2){x1=Math.min(x1,p[i]);x2=Math.max(x2,p[i]);y1=Math.min(y1,p[i+1]);y2=Math.max(y2,p[i+1]);} return [x1,y1,x2,y2]; }
+function handlesOf(it){ const p=it.p;
+  if(it.t==="line"||it.t==="arrow"||it.t==="dim") return [{x:p[0],y:p[1],k:"e0"},{x:p[2],y:p[3],k:"e1"}];
+  if(it.t==="rect") return [{x:p[0],y:p[1],k:"c0"},{x:p[2],y:p[1],k:"c1"},{x:p[2],y:p[3],k:"c2"},{x:p[0],y:p[3],k:"c3"}];
+  if(it.t==="ellipse"){ const a=Math.min(p[0],p[2]),b=Math.min(p[1],p[3]),c=Math.max(p[0],p[2]),d=Math.max(p[1],p[3]),mx=(a+c)/2,my=(b+d)/2;
+    return [{x:mx,y:b,k:"q0"},{x:c,y:my,k:"q1"},{x:mx,y:d,k:"q2"},{x:a,y:my,k:"q3"},{x:a,y:b,k:"z0"},{x:c,y:b,k:"z1"},{x:c,y:d,k:"z2"},{x:a,y:d,k:"z3"}]; }
+  if(it.t==="pen"){ const b=bbox(p); return [{x:b[0],y:b[1],k:"b0"},{x:b[2],y:b[1],k:"b1"},{x:b[2],y:b[3],k:"b2"},{x:b[0],y:b[3],k:"b3"}]; }
+  if(it.t==="text"){ const t=textBox(it); return [{x:p[0]+t.w,y:t.top+t.h,k:"s"}]; }
+  if(it.t==="pt"){ const r=(it.fs||0.03)*SK.ch*0.78; return [{x:p[0]+r/SK.cw*1000*0.71,y:p[1]+r/SK.ch*1000*0.71,k:"s"}]; }
+  return []; }
+function handleOut(it,h){ // outward unit direction (box px) for a handle
+  const p=it.p, cw=SK.cw, ch=SK.ch, n=(x,y)=>{const l=Math.hypot(x,y)||1; return [x/l,y/l];};
+  if(h.k==="e0") return n((p[0]-p[2])/1000*cw,(p[1]-p[3])/1000*ch);
+  if(h.k==="e1") return n((p[2]-p[0])/1000*cw,(p[3]-p[1])/1000*ch);
+  if(h.k==="q0") return [0,-1]; if(h.k==="q1") return [1,0]; if(h.k==="q2") return [0,1]; if(h.k==="q3") return [-1,0];
+  if(h.k[0]==="c"||h.k[0]==="b"||h.k[0]==="z"){ const b=bbox(p), cx=(b[0]+b[2])/2, cy=(b[1]+b[3])/2; return n((h.x-cx)/1000*cw||1,(h.y-cy)/1000*ch||1); }
+  return [0,0]; }
+function handlePos(it,h){ const o=handleOut(it,h), off=22/SK.z; return [h.x/1000*SK.cw+o[0]*off, h.y/1000*SK.ch+o[1]*off]; } // box px
+function skResize(p){
+  const d=skDrag, it=d.it, o=d.orig, k=d.h.k; SK.snapAt=null; SK.snapK=null;
+  const pp=[d.h.x+(p[0]-d.p0[0]), d.h.y+(p[1]-d.p0[1])]; // where the controlled point now is
+  let q=pp; if(k!=="s"){ const sp=snapPt(pp,it); q=sp.p; if(sp.hit){ SK.snapAt=sp.p; SK.snapK=sp.hit; } }
+  if(k==="e0") it.p=[q[0],q[1],o[2],o[3]];
+  else if(k==="e1") it.p=[o[0],o[1],q[0],q[1]];
+  else if(k[0]==="q"){ let a=Math.min(o[0],o[2]),b=Math.min(o[1],o[3]),c=Math.max(o[0],o[2]),dd=Math.max(o[1],o[3]);
+    if(k==="q0") b=Math.min(q[1],dd-4); if(k==="q1") c=Math.max(q[0],a+4); if(k==="q2") dd=Math.max(q[1],b+4); if(k==="q3") a=Math.min(q[0],c-4); it.p=[a,b,c,dd]; }
+  else if(k[0]==="c"){ const n=o.slice(); if(k==="c0"){n[0]=q[0];n[1]=q[1];} if(k==="c1"){n[2]=q[0];n[1]=q[1];} if(k==="c2"){n[2]=q[0];n[3]=q[1];} if(k==="c3"){n[0]=q[0];n[3]=q[1];} it.p=n; }
+  else if(k[0]==="z"){ const a=Math.min(o[0],o[2]),b=Math.min(o[1],o[3]),c=Math.max(o[0],o[2]),dd=Math.max(o[1],o[3]), i=+k[1];
+    const cx=[a,c,c,a][i], cy=[b,b,dd,dd][i], ox=[c,a,a,c][i], oy=[dd,dd,b,b][i];
+    const vx=(cx-ox)/1000*SK.cw, vy=(cy-oy)/1000*SK.ch, L2=vx*vx+vy*vy||1, wx=(pp[0]-ox)/1000*SK.cw, wy=(pp[1]-oy)/1000*SK.ch;
+    const f=Math.max(0.05,(vx*wx+vy*wy)/L2); const nx=Math.round(ox+(cx-ox)*f), ny=Math.round(oy+(cy-oy)*f);
+    it.p=[Math.min(ox,nx),Math.min(oy,ny),Math.max(ox,nx),Math.max(oy,ny)]; SK.snapAt=null; SK.snapK=null; }
+  else if(k[0]==="b"){ const b=bbox(o), idx=+k[1]; const cx=[b[0],b[2],b[2],b[0]][idx], cy=[b[1],b[1],b[3],b[3]][idx], ox=[b[2],b[0],b[0],b[2]][idx], oy=[b[3],b[3],b[1],b[1]][idx];
+    const sx=(cx-ox)?(q[0]-ox)/(cx-ox):1, sy=(cy-oy)?(q[1]-oy)/(cy-oy):1; it.p=o.map((v,i)=>Math.round(i%2?oy+(v-oy)*sy:ox+(v-ox)*sx)); }
+  else if(k==="s"){ const ax=o[0], ay=o[1]; const d0=Math.hypot((d.h.x-ax)/1000*SK.cw,(d.h.y-ay)/1000*SK.ch)||1, d1=Math.hypot((pp[0]-ax)/1000*SK.cw,(pp[1]-ay)/1000*SK.ch);
+    it.fs=Math.max(0.01,Math.min(0.2,(d.ofs||0.03)*d1/d0)); }
+}
+function itemBox(it){ const p=it.p, u=v=>v; // 0..1000 box coords
+  if(it.t==="text"){ const t=textBox(it); return [p[0],t.top,p[0]+t.w,t.top+t.h]; }
+  if(it.t==="pt"){ const r=(it.fs||0.03)*SK.ch*0.78, rx=r/SK.cw*1000, ry=r/SK.ch*1000; return [p[0]-rx,p[1]-ry,p[0]+rx,p[1]+ry]; }
+  if(it.t==="dim"){ const g=dimGeom(it,v=>v/1000*SK.cw,v=>v/1000*SK.ch,SK.cw); const pts=[p[0],p[1],p[2],p[3],g.d1[0]/SK.cw*1000,g.d1[1]/SK.ch*1000,g.d2[0]/SK.cw*1000,g.d2[1]/SK.ch*1000]; return bbox(pts); }
+  return bbox(p); }
+function selLive(){ SK.selSet=SK.selSet.filter(it=>SK.items.includes(it)); return SK.selSet; }
+function groupOf(it){ return it.g?SK.items.filter(x=>x.g===it.g):[it]; }
+function single(){ const ss=selLive(); return ss.length===1&&!ss[0].g?ss[0]:null; }
+function drawHandles(){
+  const ss=selLive(); if(!ss.length) return;
+  const one=single();
+  skX.save(); skX.lineWidth=1.5/SK.z; skX.strokeStyle="#1f4e79"; skX.fillStyle="#fff";
+  if(one){ const r=6/SK.z; for(const h of handlesOf(one)){ const [x,y]=handlePos(one,h), ax=h.x/1000*SK.cw, ay=h.y/1000*SK.ch;
+      if(h.k!=="s"){ skX.save(); skX.lineWidth=1/SK.z; skX.setLineDash([2/SK.z,2/SK.z]); skX.beginPath(); skX.moveTo(ax,ay); skX.lineTo(x,y); skX.stroke(); skX.restore(); }
+      skX.beginPath(); if(h.k==="s"){skX.arc(x,y,r,0,Math.PI*2);} else skX.rect(x-r,y-r,r*2,r*2); skX.fill(); skX.stroke(); } }
+  else { let b=[1e9,1e9,-1e9,-1e9]; for(const it of ss){ const q=itemBox(it); b=[Math.min(b[0],q[0]),Math.min(b[1],q[1]),Math.max(b[2],q[2]),Math.max(b[3],q[3])]; }
+    const pd=6/SK.z; skX.setLineDash([6/SK.z,4/SK.z]); skX.strokeRect(b[0]/1000*SK.cw-pd,b[1]/1000*SK.ch-pd,(b[2]-b[0])/1000*SK.cw+pd*2,(b[3]-b[1])/1000*SK.ch+pd*2); }
+  skX.restore(); }
+function drawBand(){ if(!skDrag||skDrag.mode!=="r") return; const a=skDrag.p0,b=skDrag.p1; skX.save(); skX.strokeStyle="#1f4e79"; skX.fillStyle="rgba(31,78,121,.08)"; skX.lineWidth=1/SK.z; skX.setLineDash([5/SK.z,4/SK.z]);
+  const x=Math.min(a[0],b[0])/1000*SK.cw, y=Math.min(a[1],b[1])/1000*SK.ch, w=Math.abs(b[0]-a[0])/1000*SK.cw, h=Math.abs(b[1]-a[1])/1000*SK.ch; skX.fillRect(x,y,w,h); skX.strokeRect(x,y,w,h); skX.restore(); }
+function snapTargets(skip){ const T=[]; const sk=Array.isArray(skip)?skip:[skip]; for(const it of SK.items){ if(sk.includes(it)||it.t==="text") continue; for(const a of anchorsOf(it)) T.push([a[0],a[1],it,a[2]]); } return T; }
+function gridStep(){ const g=SK.cw/24; return [g/SK.cw*1000, g/SK.ch*1000]; }
+function toGrid(p){ const [gx,gy]=gridStep(); return [Math.round(Math.round(p[0]/gx)*gx), Math.round(Math.round(p[1]/gy)*gy)]; }
+function nearestTarget(p,skip){ let best=null, bd=1e9;
+  for(const t of snapTargets(skip)){ const d=Math.hypot((t[0]-p[0])/1000*SK.cw,(t[1]-p[1])/1000*SK.ch); if(d<bd){bd=d;best=t;} }
+  return {t:best,d:bd}; }
+function snapPt(p,skip){ // -> {p,hit:"obj"|"grid"|false,own,kind}
+  const R=16/SK.z;
+  if(SK.snap){ const n=nearestTarget(p,skip); if(n.t&&n.d<=R) return {p:[Math.round(n.t[0]),Math.round(n.t[1])],hit:"obj",own:n.t[2],kind:n.t[3]}; }
+  if(SK.gsnap) return {p:toGrid(p),hit:"grid"};
+  return {p:p,hit:false};
+}
+function distSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy; let t=l?((px-ax)*dx+(py-ay)*dy)/l:0; t=Math.max(0,Math.min(1,t)); return Math.hypot(px-(ax+t*dx),py-(ay+t*dy));}
+function hitItem(it,bx,by,tol){ // in box px space
+  const W_=SK.cw,H_=SK.ch, X=v=>v/1000*W_, Y=v=>v/1000*H_, x=X(bx), y=Y(by), p=it.p;
+  if(it.t==="pen"){ for(let i=0;i<p.length-2;i+=2) if(distSeg(x,y,X(p[i]),Y(p[i+1]),X(p[i+2]),Y(p[i+3]))<tol) return true; return p.length===2&&Math.hypot(x-X(p[0]),y-Y(p[1]))<tol; }
+  if(it.t==="dim"){ const g=dimGeom(it,X,Y,W_); if(distSeg(x,y,...g.d1,...g.d2)<tol) return true;
+    for(const [px,py] of [[g.ax,g.ay],[g.bx,g.by]]) if(distSeg(x,y,px+g.nx*g.gap,py+g.ny*g.gap,px+g.nx*(g.oa+g.ext),py+g.ny*(g.oa+g.ext))<tol) return true;
+    if(it.s){ const fs=(it.fs||0.03)*H_; const mx=(g.d1[0]+g.d2[0])/2+g.nx*fs*0.62, my=(g.d1[1]+g.d2[1])/2+g.ny*fs*0.62; if(Math.hypot(x-mx,y-my)<fs*Math.max(1,String(it.s).length*0.35)+tol) return true; }
+    return false; }
+  if(it.t==="line"||it.t==="arrow") return distSeg(x,y,X(p[0]),Y(p[1]),X(p[2]),Y(p[3]))<tol;
+  if(it.t==="rect"){ const a=X(p[0]),b=Y(p[1]),c=X(p[2]),d=Y(p[3]); return distSeg(x,y,a,b,c,b)<tol||distSeg(x,y,c,b,c,d)<tol||distSeg(x,y,c,d,a,d)<tol||distSeg(x,y,a,d,a,b)<tol; }
+  if(it.t==="ellipse"){ const cx=(X(p[0])+X(p[2]))/2, cy=(Y(p[1])+Y(p[3]))/2, rx=Math.abs(X(p[2])-X(p[0]))/2||1, ry=Math.abs(Y(p[3])-Y(p[1]))/2||1; let px0=cx+rx,py0=cy; for(let i=1;i<=48;i++){const a=i/48*Math.PI*2, px1=cx+rx*Math.cos(a), py1=cy+ry*Math.sin(a); if(distSeg(x,y,px0,py0,px1,py1)<tol) return true; px0=px1;py0=py1;} return false; }
+  if(it.t==="text"){ const fs=(it.fs||0.03)*H_; skX.font=`700 ${fs}px ${FONT}`; const L=String(it.s||"").split("\n"); const w=Math.max(...L.map(l=>skX.measureText(l).width)); const x0=X(p[0]), y0=Y(p[1])-fs*0.6; return x>=x0-tol&&x<=x0+w+tol&&y>=y0-tol&&y<=y0+L.length*fs*1.2+tol; }
+  if(it.t==="pt"){ const r=(it.fs||0.03)*H_*0.78; return Math.hypot(x-X(p[0]),y-Y(p[1]))<r+tol; }
+  return false;
+}
+// --- pointers: pen (or a single finger when no pen is used) draws; two fingers zoom / move; with a pen, one finger moves
+const skTouch=new Map(); let skDrawId=null, skGest=null, skErased=false, skDrag=null;
+function skNavOnly(e){ return e.pointerType==="touch" && (prefs.penOnly==="pen" || (prefs.penOnly!=="all" && penSeen)); }
+skCv.addEventListener("pointerdown",e=>{
+  e.preventDefault(); if(e.pointerType==="pen") penSeen=true;
+  try{skCv.setPointerCapture(e.pointerId)}catch(_){}
+  if(e.pointerType==="touch"){ skTouch.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(skTouch.size>=2){ if(skDrawId!==null&&SK.live){SK.live=null;} skDrawId=null; skDrag=null; skStartGest(); skDraw(); return; }
+    if(skNavOnly(e)){ skStartGest(); return; } }
+  if(skDrawId!==null) return;
+  skDrawId=e.pointerId; skBegin(skPt(e));
+});
+skCv.addEventListener("pointermove",e=>{
+  if(e.pointerType==="touch"&&skTouch.has(e.pointerId)){ skTouch.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(skGest){ skMoveGest(); return; } }
+  if(e.pointerId!==skDrawId) return; e.preventDefault();
+  const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e]; for(const ev of evs) skMove(skPt(ev)); skDraw();
+});
+function skUp(e){ if(e.pointerType==="touch"){ skTouch.delete(e.pointerId); if(skGest&&skTouch.size<(skGest.n)) { skGest=null; if(skTouch.size) skStartGest(); } }
+  if(e.pointerId===skDrawId){ skDrawId=null; skEnd(skPt(e)); } }
+skCv.addEventListener("pointerup",skUp); skCv.addEventListener("pointercancel",skUp);
+skCv.addEventListener("touchstart",e=>e.preventDefault(),{passive:false});
+function skStartGest(){ const t=[...skTouch.values()]; const mx=t.reduce((s,q)=>s+q.x,0)/t.length, my=t.reduce((s,q)=>s+q.y,0)/t.length;
+  const d=t.length>1?Math.hypot(t[0].x-t[1].x,t[0].y-t[1].y):0; skGest={n:t.length,mx,my,d,z:SK.z,ox:SK.ox,oy:SK.oy}; }
+function skMoveGest(){ const g=skGest, t=[...skTouch.values()]; if(t.length<g.n) return; const r=skCv.getBoundingClientRect();
+  const mx=t.reduce((s,q)=>s+q.x,0)/t.length, my=t.reduce((s,q)=>s+q.y,0)/t.length;
+  let z=g.z; if(g.n>1&&g.d>0) z=Math.max(1,Math.min(5,g.z*Math.hypot(t[0].x-t[1].x,t[0].y-t[1].y)/g.d));
+  const bx=(g.mx-r.left+g.ox)/g.z, by=(g.my-r.top+g.oy)/g.z; // box px under the start midpoint
+  SK.z=z; SK.ox=bx*z-(mx-r.left); SK.oy=by*z-(my-r.top); skClamp(); skDraw(); }
+function grabHandle(p){ // a handle of the single selected item, or (move tool) the end of any line
+  const hr=13/SK.z, px=p[0]/1000*SK.cw, py=p[1]/1000*SK.ch;
+  const one=single(); if(one){ let best=null, bd=1e9; for(const q of handlesOf(one)){ const [x,y]=handlePos(one,q), dd=Math.hypot(x-px,y-py); if(dd<bd){bd=dd;best=q;} }
+    if(best&&bd<=hr){ // while drawing, a point you can snap to wins when it is closer than the handle
+      const nt=SK.tool==="move"?null:nearestTarget(p,null); if(!nt||!nt.t||nt.d>bd) return {it:one,h:best}; } }
+  const near=q=>Math.hypot((q.x-p[0])/1000*SK.cw,(q.y-p[1])/1000*SK.ch)<=hr;
+  if(SK.tool==="move") for(const it of [...SK.items].reverse()){ if((it.t!=="line"&&it.t!=="arrow"&&it.t!=="dim")||it.g) continue; const e=handlesOf(it).find(near); if(e) return {it,h:e}; }
+  return null; }
+function skBegin(p){
+  const T=SK.tool, base={c:SK.color,w:SK.w};
+  if(T!=="eraser"&&T!=="img"){ const g=grabHandle(p); if(g){ SK.selSet=[g.it]; skDrag={mode:"h",it:g.it,h:g.h,p0:p,orig:g.it.p.slice(),ofs:g.it.fs,pre:skSnap()}; skDraw(); return; } }
+  if(T==="pen"){ SK.live=Object.assign({t:"pen",p:[p[0],p[1]]},base); }
+  else if(["line","arrow","dim","rect","ellipse"].includes(T)){ const sp=snapPt(p); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; p=sp.p; SK.live=Object.assign({t:T,p:[p[0],p[1],p[0],p[1]]},base); if(T==="dim"){ SK.live.o=-45; SK.live._a=sp.hit==="obj"?{own:sp.own,kind:sp.kind}:null; } }
+  else if(T==="move"){ const tol=12/SK.z; const hit=[...SK.items].reverse().find(it=>hitItem(it,p[0],p[1],tol));
+    if(hit){ const ss=selLive(), was=ss.includes(hit); const set=was?ss:groupOf(hit);
+      skDrag={mode:"m",items:set.slice(),origs:set.map(it=>it.p.slice()),p0:p,pre:skSnap(),hit,was,prev:ss.slice()}; SK.selSet=was?ss:ss.concat(groupOf(hit).filter(x=>!ss.includes(x))); }
+    else { SK.selSet=[]; skDrag={mode:"r",p0:p,p1:p}; } }
+  else if(T==="eraser"){ skErased=false; skErase(p); }
+  else if(T==="img"){ if(SK.img){ skPush(); skDrag={mode:"img",p0:p,cx:SK.imgT.cx,cy:SK.imgT.cy}; } }
+  else SK.live=null;
+  skDraw();
+}
+function firstChange(){ if(!skDrag.moved){ SK.hist.push(skDrag.pre); SK.fut=[]; skHistBtns(); skDrag.moved=true; } }
+function skMove(p){
+  const T=SK.tool, L=SK.live, d=skDrag;
+  if(d&&d.mode==="h"){ firstChange(); skResize(p); return; }
+  if(d&&d.mode==="r"){ d.p1=p; return; }
+  if(d&&d.mode==="m"){ firstChange(); const dx=p[0]-d.p0[0], dy=p[1]-d.p0[1]; let ddx=dx, ddy=dy, done=false; SK.snapAt=null; SK.snapK=null;
+    const anc=[]; d.items.forEach((it,i)=>anchorsOf(Object.assign({},it,{p:d.origs[i]})).forEach(a=>anc.push(a)));
+    if(SK.snap){ let best=null; for(const a of anc){ const n=nearestTarget([a[0]+dx,a[1]+dy],d.items); if(n.t&&(!best||n.d<best.d)) best={d:n.d,t:n.t,a}; }
+      if(best&&best.d<=16/SK.z){ ddx=best.t[0]-best.a[0]; ddy=best.t[1]-best.a[1]; SK.snapAt=[best.t[0],best.t[1]]; SK.snapK="obj"; done=true; } }
+    if(!done&&SK.gsnap&&anc.length){ const a=anc[0], g=toGrid([a[0]+dx,a[1]+dy]); ddx=g[0]-a[0]; ddy=g[1]-a[1]; SK.snapAt=g; SK.snapK="grid"; }
+    d.items.forEach((it,i)=>{ it.p=d.origs[i].map((v,j)=>Math.round(v+(j%2?ddy:ddx))); }); return; }
+  if(d&&d.mode==="img"){ SK.imgT.cx=d.cx+(p[0]-d.p0[0]); SK.imgT.cy=d.cy+(p[1]-d.p0[1]); return; }
+  if(L&&L.t==="pen"){ const n=L.p.length; if(Math.abs(p[0]-L.p[n-2])+Math.abs(p[1]-L.p[n-1])>=2) L.p.push(p[0],p[1]); }
+  else if(L&&L.t==="ellipse"){ // true circle while drawing; stretch later with the handles
+    const dx=(p[0]-L.p[0])/1000*SK.cw, dy=(p[1]-L.p[1])/1000*SK.ch, r=Math.max(Math.abs(dx),Math.abs(dy));
+    L.p[2]=Math.round(L.p[0]+(dx<0?-r:r)/SK.cw*1000); L.p[3]=Math.round(L.p[1]+(dy<0?-r:r)/SK.ch*1000); SK.snapAt=null; }
+  else if(L){ const sp=snapPt(p,L); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; if(L.t==="dim") L._b=sp.hit==="obj"?{own:sp.own,kind:sp.kind}:null;
+    if(sp.hit){ L.p[2]=sp.p[0]; L.p[3]=sp.p[1]; }
+    else { L.p[2]=p[0]; L.p[3]=p[1]; if(L.t==="line"||L.t==="arrow"||L.t==="dim") L.p=snapLine([L.p[0],L.p[1],p[0],p[1]]); } }
+  else if(T==="eraser") skErase(p);
+}
+function skEnd(p){
+  const T=SK.tool, L=SK.live, d=skDrag; SK.live=null; SK.snapAt=null; skDrag=null;
+  if(d&&d.mode==="h"){ skPaintTools(); skDraw(); return; }
+  if(d&&d.mode==="r"){ const x1=Math.min(d.p0[0],d.p1[0]), y1=Math.min(d.p0[1],d.p1[1]), x2=Math.max(d.p0[0],d.p1[0]), y2=Math.max(d.p0[1],d.p1[1]);
+    if(x2-x1>4||y2-y1>4){ let set=SK.items.filter(it=>{const b=itemBox(it); return b[0]<=x2&&b[2]>=x1&&b[1]<=y2&&b[3]>=y1;}); const add=[]; set.forEach(it=>groupOf(it).forEach(g=>{ if(!set.includes(g)&&!add.includes(g)) add.push(g); })); SK.selSet=set.concat(add); }
+    skPaintTools(); skDraw(); return; }
+  if(d&&d.mode==="m"){
+    if(!d.moved){ const g=groupOf(d.hit); SK.selSet=d.was?d.prev.filter(x=>!g.includes(x)):d.prev.concat(g.filter(x=>!d.prev.includes(x))); } // tap: add / remove
+    else if(!d.was){ SK.selSet=d.items.slice(); } // dragged an unselected object: it alone is selected
+    skPaintTools(); skDraw(); return; }
+  if(d&&d.mode==="img"){ skDone(); skPaintTools(); skDraw(); return; }
+  if(L&&L.t==="dim"){ const a=L._a, b=L._b; delete L._a; delete L._b;
+    if(a&&b&&a.own===b.own&&a.own.t==="ellipse"){ L.circ=true; if(a.kind==="c") L.cen="a"; else if(b.kind==="c") L.cen="b"; } }
+  if(L){ const big=L.t==="pen"?L.p.length>=2:(Math.abs(L.p[2]-L.p[0])+Math.abs(L.p[3]-L.p[1])>6);
+    if(big){ if(L.t==="arrow") L.p=[L.p[2],L.p[3],L.p[0],L.p[1]]; // the tapped start point is the arrow tip
+      skPush(); SK.items.push(L); SK.selSet=[L]; skDone(); if(L.t==="dim"){ L.fs=FS_OF[SK.w]||0.03; skAskDim(L,true); } }
+    else if(L.t==="dim"){ const hit=[...SK.items].reverse().find(it=>it.t==="dim"&&hitItem(it,p[0],p[1],10/SK.z)); if(hit){ SK.selSet=[hit]; skAskDim(hit,false); } else SK.selSet=[]; }
+    else SK.selSet=[]; }
+  else if(T==="eraser"){ skEraseEnd(); }
+  else if(T==="text"){ const hit=[...SK.items].reverse().find(it=>it.t==="text"&&hitItem(it,p[0],p[1],6)); skAskText(hit,hit?p:snapPt(p).p); skDone(); }
+  else if(T==="pt"){ const hit=[...SK.items].reverse().find(it=>it.t==="pt"&&hitItem(it,p[0],p[1],4)); if(!hit){ p=snapPt(p).p; skPush(); const it={t:"pt",p:[p[0],p[1]],n:nextPt(),c:SK.color,w:SK.w,fs:FS_OF[SK.w]||0.03}; SK.items.push(it); SK.selSet=[it]; skDone(); } else SK.selSet=[hit]; }
+  skPaintTools(); skDraw();
+}
+function skEraseEnd(){ if(SK.tool==="eraser"&&skErased) skDone(); }
+function skErase(p){ const tol=10/SK.z; const keep=SK.items.filter(it=>!hitItem(it,p[0],p[1],tol)); if(keep.length!==SK.items.length){ if(!skErased){ skPush(); skErased=true; } SK.items=keep; } }
+// text entry
+const skTM=document.getElementById("skTxtModal"), skTIn=document.getElementById("skTxtIn"); let skTEdit=null, skTPos=null;
+let skTDim=null, skTDimNew=false, skTDimO=0;
+function skAskText(hit,p){ skTDim=null; document.getElementById("skDimOpts").hidden=true; document.getElementById("skTxtTitle").textContent="文字";
+  skTEdit=hit||null; skTPos=p; skTIn.value=hit?hit.s:""; document.getElementById("skTxtDel").hidden=!hit; skTM.hidden=false; setTimeout(()=>skTIn.focus(),30); }
+function skAskDim(d,isNew){ skTEdit=null; skTDim=d; skTDimNew=isNew; skTDimO=d.o; if(!isNew) skPush();
+  document.getElementById("skTxtTitle").textContent="寸法"; document.getElementById("skDimOpts").hidden=false;
+  document.getElementById("skDimOffRow").hidden=!!d.circ; document.getElementById("skDimFlip").textContent=d.circ?"数値を反対側へ":"反対側へ";
+  document.getElementById("skDimOff").value=Math.abs(d.o!=null?d.o:45); skTIn.value=d.s||""; document.getElementById("skTxtDel").hidden=false;
+  skTM.hidden=false; skDraw(); setTimeout(()=>skTIn.focus(),30); }
+document.getElementById("skDimFlip").onclick=()=>{ if(!skTDim) return; skTDim.o=-(skTDim.o!=null?skTDim.o:-45); skDraw(); };
+document.getElementById("skDimOff").addEventListener("input",e=>{ if(!skTDim) return; const sg=(skTDim.o!=null?skTDim.o:-45)<0?-1:1; skTDim.o=sg*(+e.target.value); skDraw(); });
+document.getElementById("skTxtCancel").onclick=()=>{ skTM.hidden=true;
+  if(skTDim){ if(skTDimNew){ /* keep the new dimension, without text */ } else { const h=SK.hist.pop(); if(h) skRestore(h); skHistBtns(); } skTDim=null; skDraw(); } };
+document.getElementById("skTxtOk").onclick=()=>{ const v=skTIn.value.replace(/\r/g,"").trim(); skTM.hidden=true;
+  if(skTDim){ skTDim.s=v; skTDim=null; skDraw(); return; }
+  skPush();
+  if(skTEdit){ if(v) skTEdit.s=v; else SK.items=SK.items.filter(it=>it!==skTEdit); }
+  else if(v){ const it={t:"text",p:[skTPos[0],skTPos[1]],s:v,c:SK.color,w:SK.w,fs:FS_OF[SK.w]||0.03}; SK.items.push(it); SK.selSet=[it]; }
+  skDraw(); };
+document.getElementById("skTxtDel").onclick=()=>{ skTM.hidden=true;
+  if(skTDim){ const d=skTDim; skTDim=null; SK.items=SK.items.filter(it=>it!==d); skDraw(); return; }
+  if(skTEdit){ skPush(); SK.items=SK.items.filter(it=>it!==skTEdit); skDraw(); } };
+// buttons
+document.getElementById("skGrid").onclick=()=>{SK.grid=!SK.grid; skPaintTools(); skDraw();};
+document.getElementById("skGroup").onclick=()=>{ const ss=selLive(); if(ss.length>1&&ss.every(it=>it.g&&it.g===ss[0].g)){ skPush(); ss.forEach(it=>{delete it.g;}); skPaintTools(); skDraw(); toast("グループを解除しました"); return; } if(ss.length<2) return; skPush(); const id="g"+Date.now().toString(36); ss.forEach(it=>it.g=id); SK.selSet=ss.slice(); skPaintTools(); skDraw(); toast("グループにしました"); };
+document.getElementById("skOSnap").onclick=()=>{SK.snap=!SK.snap; skPaintTools();};
+document.getElementById("skGSnap").onclick=()=>{SK.gsnap=!SK.gsnap; skPaintTools();};
+function skZoomBy(f){ const cx=SK.cw/2, cy=SK.ch/2, bx=(cx+SK.ox)/SK.z, by=(cy+SK.oy)/SK.z; SK.z=Math.max(1,Math.min(5,SK.z*f)); SK.ox=bx*SK.z-cx; SK.oy=by*SK.z-cy; skClamp(); skDraw(); }
+document.getElementById("skZIn").onclick=()=>skZoomBy(1.5); document.getElementById("skZOut").onclick=()=>skZoomBy(1/1.5);
+document.getElementById("skZFit").onclick=()=>{SK.z=1;SK.ox=0;SK.oy=0;skDraw();};
+document.getElementById("skUndo").onclick=()=>{ const h=SK.hist.pop(); if(!h) return; SK.fut.push(skSnap()); skRestore(h); skHistBtns(); skPaintTools(); skDraw(); };
+document.getElementById("skRedo").onclick=()=>{ const h=SK.fut.pop(); if(!h) return; SK.hist.push(skSnap()); skRestore(h); skHistBtns(); skPaintTools(); skDraw(); };
+document.getElementById("skClear").onclick=()=>{ if(!SK.items.length) return; skPush(); SK.items=[]; skPaintTools(); skDraw(); toast("描いたものを消しました（「1つ戻す」で戻せます）"); };
+async function skLoadImg(e){ const file=e.target.files&&e.target.files[0]; e.target.value=""; if(!file) return;
+  try{ const d=await shrinkImage(file); skPush(); SK.img=d; SK.imgT={cx:500,cy:500,s:1}; SK.tool="img"; skPaintTools(); await new Promise(r=>{const im=new Image(); im.onload=r; im.onerror=r; im.src=d;}); getImg(d); setTimeout(skDraw,50); }
+  catch(_){ toast("画像を読み込めませんでした。JPEGかPNGの画像を選んでください。"); } }
+document.getElementById("skCam").addEventListener("change",skLoadImg); document.getElementById("skFile").addEventListener("change",skLoadImg);
+document.getElementById("skImgDel").onclick=()=>{ if(!SK.img) return; skPush(); SK.img=null; if(SK.tool==="img") SK.tool="pen"; skPaintTools(); skDraw(); };
+document.getElementById("skSize").addEventListener("input",e=>{ if(!SK.img) return; if(!skSizing){ skPush(); skSizing=true; } SK.imgT.s=(+e.target.value)/100; document.getElementById("skSizeV").textContent=e.target.value+"%"; skDraw(); });
+let skSizing=false; document.getElementById("skSize").addEventListener("change",()=>{skSizing=false;});
+document.getElementById("skCancel").onclick=()=>{ skM.hidden=true; closeHl(); };
+document.getElementById("skOk").onclick=()=>{
+  const imgChanged=cur.img!==SK.img || JSON.stringify(cur.imgT||null)!==JSON.stringify(SK.img?SK.imgT:null);
+  if(SK.items.length) cur.ink.sketch={items:SK.items,v:2}; else delete cur.ink.sketch;
+  cur.img=SK.img; cur.imgT=SK.img?SK.imgT:null;
+  touch(cur); cloudInk(cur,"sketch"); if(imgChanged) cloudImg(cur);
+  skM.hidden=true; closeHl();
+};
+
 /* ================= forms ================= */
 const sel=document.getElementById("formSel");
 function formName(f){const F=f.fields||{}; const a=F.taisho||"", b=F.koujimei||""; const d=new Date(f.created); const ds=`${d.getMonth()+1}/${d.getDate()}`; return `${a||b||"無題"}${a&&b?"・"+b:""}（${ds}作成）`;}
@@ -831,7 +1296,7 @@ function ensureImgs(f){ return new Promise(res=>{ if(!f.img) return res(); const
 function inkPng(c,f,mult){
   const k=mult; const cvs=document.createElement("canvas"); cvs.width=Math.max(1,Math.round(c.w*k)); cvs.height=Math.max(1,Math.round(c.h*k));
   const x=cvs.getContext("2d"); x.scale(k,k);
-  if(c.kind==="sketch"){ const im=getImg(f.img); if(im) drawContain(x,im,2,2,c.w-4,c.h-4); drawInk(x,f.ink.sketch,0,0,c.w,c.h,"#111",1.1); }
+  if(c.kind==="sketch"){ drawSketch(x,{img:f.img,imgT:f.imgT,items:skItemsOf(f)},0,0,c.w,c.h,{grid:false,minW:1.1}); }
   else drawInk(x,f.ink[c.key],0,0,c.w,c.h,inkColor(c,f.ink[c.key]),1.1);
   return cvs.toDataURL("image/png");
 }
@@ -862,7 +1327,7 @@ function buildSheet(wb,name,f,mode){
         if(c.num&&/^[-+]?\d+(\.\d+)?$/.test(t)){ x.value=Number(t); const d=(t.split(".")[1]||"").length; x.numFmt=d?"#,##0."+"0".repeat(d):"#,##0"; }
         else x.value=v; }
     } else if(c.t==="ink"){
-      const has=c.kind==="sketch"?((f.ink.sketch&&f.ink.sketch.s.length)||f.img):(f.ink[c.key]&&f.ink[c.key].s.length);
+      const has=c.kind==="sketch"?(skItemsOf(f).length||f.img):(f.ink[c.key]&&f.ink[c.key].s.length);
       if(!has) continue;
       if(mode==="val"&&c.kind!=="sketch"){
         const r=cellVal(c,f.ink[c.key]);
@@ -890,7 +1355,7 @@ document.getElementById("bXlsx").onclick=async()=>{
 let tt=null; function toast(m){const t=document.getElementById("toast"); t.textContent=m; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,2600);}
 function note(m){toast(m);}
 function setHint(m){document.getElementById("hint").textContent=m||("欄をタップして入力します。実測値・立会値・誤差は手書き、そのほかは文字入力です。"+(cloudOK?"":"　※データはこのiPadにだけ保存されます。書き終えたらPDFかExcelで保存してください。"));}
-document.addEventListener("keydown",e=>{ if(e.key!=="Escape") return; if(!pM.hidden){pM.hidden=true;closeHl();} else if(!tM.hidden){tM.hidden=true;closeHl();} else if(!sM.hidden) sM.hidden=true; else if(!dM.hidden) dM.hidden=true; });
+document.addEventListener("keydown",e=>{ if(e.key!=="Escape") return; if(!document.getElementById("skTxtModal").hidden){document.getElementById("skTxtModal").hidden=true;return;} if(!skM.hidden){skM.hidden=true;closeHl();return;} if(!pM.hidden){pM.hidden=true;closeHl();} else if(!tM.hidden){tM.hidden=true;closeHl();} else if(!sM.hidden) sM.hidden=true; else if(!dM.hidden) dM.hidden=true; });
 window.addEventListener("online",()=>{ setSync(); for(const [p,q] of wq) pump(p,q); });
 window.addEventListener("offline",()=>{ setSync(); toast("オフラインです。このまま書き続けられます"); });
 // keep the iPad screen awake while this page is in front, so the page is not put to sleep in the field
