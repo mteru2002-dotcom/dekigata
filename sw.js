@@ -1,5 +1,5 @@
 // 出来形成果表 オフライン用。ファイルを更新したら VERSION を上げてください。
-const VERSION = "dkg-v18";
+const VERSION = "dkg-v19";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./exceljs.min.js", "./jspdf.umd.min.js",
   "./icon-180.png", "./icon-192.png", "./icon-512.png"];
 self.addEventListener("install", e => {

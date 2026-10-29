@@ -131,6 +131,8 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 .kp button{min-height:62px;font-size:26px;font-weight:700;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none;font-variant-numeric:tabular-nums}
 .kp button:active{background:var(--accent-soft)}
 .kp button.fn{font-size:17px;font-weight:700;background:var(--accent-soft)}
+.kp.alpha{grid-template-columns:repeat(7,1fr)}
+.kp.alpha button{font-size:22px;min-height:54px}
 .kp button.ok{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);
   padding:10px 16px;border-radius:10px;z-index:30;font-size:14px;max-width:calc(100% - 32px)}
@@ -139,7 +141,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 
 <div class="bar">
   <div class="bar-row">
-    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v18</span></span>
+    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v19</span></span>
     <select id="formSel" class="formsel" aria-label="帳票を選ぶ"></select>
     <div class="grp">
       <button class="btn sm" id="bNew">新規</button>
@@ -649,20 +651,32 @@ function closeHl(){ hl=null; render(); }
 /* ================= big keypad ================= */
 // keys: digits, point, minus (+ extra symbols for dimension values). "キーボード" switches to the iPad's own keyboard.
 function buildPad(box,input,opt){
-  box.innerHTML=""; const keys=["7","8","9","⌫","4","5","6","クリア","1","2","3","-","0",".",",",...(opt.extra||[]),"キーボード"]; if(opt.ok) keys.push("OK");
+  let mode="num", upper=true;
   const ins=t=>{ const el=input(); const a=el.selectionStart??el.value.length, b=el.selectionEnd??el.value.length; el.value=el.value.slice(0,a)+t+el.value.slice(b); const c=a+t.length; try{el.setSelectionRange(c,c);}catch(_){} el.dispatchEvent(new Event("input",{bubbles:true})); };
-  keys.forEach(k=>{ const b=document.createElement("button"); b.type="button"; b.textContent=k;
-    if(["⌫","クリア","キーボード"].includes(k)) b.className="fn"; if(k==="OK") b.className="ok";
-    b.addEventListener("pointerdown",e=>e.preventDefault()); // keep the caret in the field
-    b.onclick=()=>{ const el=input();
-      if(k==="⌫"){ const a=el.selectionStart??el.value.length, z=el.selectionEnd??el.value.length; if(a!==z){ el.value=el.value.slice(0,a)+el.value.slice(z); try{el.setSelectionRange(a,a);}catch(_){} } else if(a>0){ el.value=el.value.slice(0,a-1)+el.value.slice(a); try{el.setSelectionRange(a-1,a-1);}catch(_){} } el.dispatchEvent(new Event("input",{bubbles:true})); }
-      else if(k==="クリア"){ el.value=""; el.dispatchEvent(new Event("input",{bubbles:true})); }
-      else if(k==="キーボード"){ el.setAttribute("inputmode",opt.mode||"text"); box.hidden=true; el.blur(); setTimeout(()=>el.focus(),30); }
-      else if(k==="OK"){ opt.ok(); }
-      else ins(k); };
-    box.appendChild(b); });
+  const back=()=>{ const el=input(); const a=el.selectionStart??el.value.length, z=el.selectionEnd??el.value.length; if(a!==z){ el.value=el.value.slice(0,a)+el.value.slice(z); try{el.setSelectionRange(a,a);}catch(_){} } else if(a>0){ el.value=el.value.slice(0,a-1)+el.value.slice(a); try{el.setSelectionRange(a-1,a-1);}catch(_){} } el.dispatchEvent(new Event("input",{bubbles:true})); };
+  function draw(){
+    box.innerHTML=""; box.classList.toggle("alpha",mode==="alpha");
+    let keys;
+    if(mode==="num"){ keys=["7","8","9","⌫","4","5","6","クリア","1","2","3","-","0",".",",",...(opt.extra||[])]; if(opt.alpha) keys.push("ABC"); keys.push("キーボード"); if(opt.ok) keys.push("OK"); }
+    else { const L="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(c=>upper?c:c.toLowerCase()); keys=[...L,upper?"小文字":"大文字","⌫","123","クリア"]; if(opt.ok) keys.push("OK"); }
+    keys.forEach(k=>{ const btn=document.createElement("button"); btn.type="button"; btn.textContent=k;
+      if(["⌫","クリア","キーボード","ABC","123","大文字","小文字"].includes(k)) btn.className="fn"; if(k==="OK") btn.className="ok";
+      btn.addEventListener("pointerdown",e=>e.preventDefault()); // keep the caret in the field
+      btn.onclick=()=>{ const el=input();
+        if(k==="⌫") back();
+        else if(k==="クリア"){ el.value=""; el.dispatchEvent(new Event("input",{bubbles:true})); }
+        else if(k==="キーボード"){ el.setAttribute("inputmode",opt.mode||"text"); box.hidden=true; el.blur(); setTimeout(()=>el.focus(),30); }
+        else if(k==="OK"){ opt.ok(); }
+        else if(k==="ABC"){ mode="alpha"; draw(); }
+        else if(k==="123"){ mode="num"; draw(); }
+        else if(k==="大文字"||k==="小文字"){ upper=!upper; draw(); }
+        else ins(k); };
+      box.appendChild(btn); });
+  }
+  box._reset=()=>{ mode="num"; upper=true; draw(); };
+  draw();
 }
-function showPad(box,el,mode){ box.hidden=false; el.setAttribute("inputmode","none"); el.dataset.mode=mode; }
+function showPad(box,el,mode){ if(box._reset) box._reset(); box.hidden=false; el.setAttribute("inputmode","none"); el.dataset.mode=mode; }
 function hidePad(box,el,mode){ box.hidden=true; el.setAttribute("inputmode",mode||"text"); }
 // a separate keypad dialog for the small gd fields in the sketch tools
 const kpM=document.getElementById("kpModal"), kpIn=document.getElementById("kpIn"); let kpTarget=null;
@@ -1160,12 +1174,21 @@ function snapPt(p,skip){ // -> {p,hit:"obj"|"grid"|false,own,kind}
   return {p:p,hit:false};
 }
 function distSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy; let t=l?((px-ax)*dx+(py-ay)*dy)/l:0; t=Math.max(0,Math.min(1,t)); return Math.hypot(px-(ax+t*dx),py-(ay+t*dy));}
+function dimTextBox(it){ // centre, angle and half sizes (box px) of a dimension's value, laid out as drawDim does
+  const X=v=>v/1000*SK.cw, Y=v=>v/1000*SK.ch, g=dimGeom(it,X,Y,SK.cw), fs=(it.fs||0.03)*SK.ch;
+  skX.save(); skX.font=`700 ${fs}px ${FONT}`; const tw=skX.measureText(String(it.s||"")).width; skX.restore();
+  let a=Math.atan2(g.uy,g.ux); if(a>Math.PI/2-0.01) a-=Math.PI; if(a<-Math.PI/2-0.01) a+=Math.PI;
+  let mx=(g.d1[0]+g.d2[0])/2+g.nx*fs*0.62, my=(g.d1[1]+g.d2[1])/2+g.ny*fs*0.62;
+  if(Math.abs(g.uy)>0.85){ a=0; mx=(g.d1[0]+g.d2[0])/2+g.nx*(tw/2+fs*0.35); my=(g.d1[1]+g.d2[1])/2+g.ny*(fs*0.62); }
+  return {mx,my,a,hw:tw/2,hh:fs*0.6}; }
+function onDimText(it,bx,by,tol){ if(!it.s) return false; const t=dimTextBox(it), x=bx/1000*SK.cw-t.mx, y=by/1000*SK.ch-t.my, c=Math.cos(-t.a), s_=Math.sin(-t.a);
+  const lx=x*c-y*s_, ly=x*s_+y*c; return Math.abs(lx)<=t.hw+tol&&Math.abs(ly)<=t.hh+tol; }
 function hitItem(it,bx,by,tol){ // in box px space
   const W_=SK.cw,H_=SK.ch, X=v=>v/1000*W_, Y=v=>v/1000*H_, x=X(bx), y=Y(by), p=it.p;
   if(it.t==="pen"){ for(let i=0;i<p.length-2;i+=2) if(distSeg(x,y,X(p[i]),Y(p[i+1]),X(p[i+2]),Y(p[i+3]))<tol) return true; return p.length===2&&Math.hypot(x-X(p[0]),y-Y(p[1]))<tol; }
   if(it.t==="dim"){ const g=dimGeom(it,X,Y,W_); if(distSeg(x,y,...g.d1,...g.d2)<tol) return true;
     for(const [px,py] of [[g.ax,g.ay],[g.bx,g.by]]) if(distSeg(x,y,px+g.nx*g.gap,py+g.ny*g.gap,px+g.nx*(g.oa+g.ext),py+g.ny*(g.oa+g.ext))<tol) return true;
-    if(it.s){ const fs=(it.fs||0.03)*H_; const mx=(g.d1[0]+g.d2[0])/2+g.nx*fs*0.62, my=(g.d1[1]+g.d2[1])/2+g.ny*fs*0.62; if(Math.hypot(x-mx,y-my)<fs*Math.max(1,String(it.s).length*0.35)+tol) return true; }
+    if(it.s&&onDimText(it,bx,by,tol)) return true;
     return false; }
   if(it.t==="line"||it.t==="arrow") return distSeg(x,y,X(p[0]),Y(p[1]),X(p[2]),Y(p[3]))<tol;
   if(it.t==="rect"&&(it.fill||it.hatch)){ const a=Math.min(X(p[0]),X(p[2])),b=Math.min(Y(p[1]),Y(p[3])),c=Math.max(X(p[0]),X(p[2])),d=Math.max(Y(p[1]),Y(p[3])); if(x>=a&&x<=c&&y>=b&&y<=d) return true; }
@@ -1208,11 +1231,12 @@ function skMoveGest(){ const g=skGest, t=[...skTouch.values()]; if(t.length<g.n)
   SK.z=z; SK.ox=bx*z-(mx-r.left); SK.oy=by*z-(my-r.top); skClamp(); skDraw(); }
 function grabHandle(p){ // a handle of the single selected item, or (move tool) the end of any line
   const hr=13/SK.z, px=p[0]/1000*SK.cw, py=p[1]/1000*SK.ch;
-  const one=single(); if(one){ let best=null, bd=1e9; for(const q of handlesOf(one)){ const [x,y]=handlePos(one,q), dd=Math.hypot(x-px,y-py); if(dd<bd){bd=dd;best=q;} }
+  const one=single(); const onVal=one&&one.t==="dim"&&onDimText(one,p[0],p[1],6/SK.z); // the value wins over the distance handle
+  if(one){ let best=null, bd=1e9; for(const q of handlesOf(one)){ if(onVal&&q.k==="o") continue; const [x,y]=handlePos(one,q), dd=Math.hypot(x-px,y-py); if(dd<bd){bd=dd;best=q;} }
     if(best&&bd<=hr){ // while drawing, a point you can snap to wins when it is closer than the handle
       const nt=SK.tool==="move"?null:nearestTarget(p,null); if(!nt||!nt.t||nt.d>bd) return {it:one,h:best}; } }
   const near=q=>Math.hypot((q.x-p[0])/1000*SK.cw,(q.y-p[1])/1000*SK.ch)<=hr;
-  if(SK.tool==="move") for(const it of [...SK.items].reverse()){ if((it.t!=="line"&&it.t!=="arrow"&&it.t!=="dim")||it.g) continue; const e=handlesOf(it).find(near); if(e) return {it,h:e}; }
+  if(SK.tool==="move") for(const it of [...SK.items].reverse()){ if((it.t!=="line"&&it.t!=="arrow"&&it.t!=="dim")||it.g) continue; if(it.t==="dim"&&onDimText(it,p[0],p[1],6/SK.z)) continue; const e=handlesOf(it).find(q=>q.k!=="o"&&near(q)); if(e) return {it,h:e}; }
   return null; }
 function skBegin(p){
   const T=SK.tool, base={c:SK.color,w:SK.w};
@@ -1261,7 +1285,7 @@ function skEnd(p){
     if(x2-x1>4||y2-y1>4){ let set=SK.items.filter(it=>{const b=itemBox(it); return b[0]<=x2&&b[2]>=x1&&b[1]<=y2&&b[3]>=y1;}); const add=[]; set.forEach(it=>groupOf(it).forEach(g=>{ if(!set.includes(g)&&!add.includes(g)) add.push(g); })); SK.selSet=set.concat(add); }
     skPaintTools(); skDraw(); return; }
   if(d&&d.mode==="m"){
-    if(!d.moved&&d.was&&d.prev.length===1&&(d.hit.t==="text"||d.hit.t==="dim")){ SK.selSet=[d.hit]; skEditItem(d.hit); skPaintTools(); skDraw(); return; } // tap again: edit
+    if(!d.moved&&(d.hit.t==="text"||(d.hit.t==="dim"&&(onDimText(d.hit,p[0],p[1],10/SK.z)||(d.was&&d.prev.length===1))))){ SK.selSet=[d.hit]; skEditItem(d.hit); skPaintTools(); skDraw(); return; } // tap again: edit
     if(!d.moved){ const g=groupOf(d.hit); SK.selSet=d.was?d.prev.filter(x=>!g.includes(x)):d.prev.concat(g.filter(x=>!d.prev.includes(x))); } // tap: add / remove
     else if(!d.was){ SK.selSet=d.items.slice(); } // dragged an unselected object: it alone is selected
     skPaintTools(); skDraw(); return; }
@@ -1285,7 +1309,7 @@ function skErase(p){ const tol=10/SK.z; const keep=SK.items.filter(it=>!hitItem(
 // text entry
 const skTM=document.getElementById("skTxtModal"), skTIn=document.getElementById("skTxtIn"); let skTEdit=null, skTPos=null;
 let skTDim=null, skTDimNew=false, skTDimO=0;
-buildPad(document.getElementById("skKp"),()=>skTIn,{mode:"text",extra:["φ","R","t","±"]});
+buildPad(document.getElementById("skKp"),()=>skTIn,{mode:"text",extra:["φ","R","t","±"],alpha:true});
 function skAskText(hit,p){ skTDim=null; document.getElementById("skDimOpts").hidden=true; hidePad(document.getElementById("skKp"),skTIn,"text"); document.getElementById("skTxtTitle").textContent="文字";
   skTEdit=hit||null; skTPos=p; skTIn.value=hit?hit.s:""; document.getElementById("skTxtDel").hidden=!hit; skTM.hidden=false; setTimeout(()=>skTIn.focus(),30); }
 function skAskDim(d,isNew){ skTEdit=null; skTDim=d; skTDimNew=isNew; skTDimO=d.o; if(!isNew) skPush();
