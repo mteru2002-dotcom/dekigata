@@ -144,7 +144,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 
 <div class="bar">
   <div class="bar-row">
-    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v24</span></span>
+    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v25</span></span>
     <select id="formSel" class="formsel" aria-label="帳票を選ぶ"></select>
     <div class="grp">
       <button class="btn sm" id="bNew">新規</button>
@@ -660,21 +660,22 @@ function buildPad(box,input,opt){
   const back=()=>{ const el=input(); const a=el.selectionStart??el.value.length, z=el.selectionEnd??el.value.length; if(a!==z){ el.value=el.value.slice(0,a)+el.value.slice(z); try{el.setSelectionRange(a,a);}catch(_){} } else if(a>0){ el.value=el.value.slice(0,a-1)+el.value.slice(a); try{el.setSelectionRange(a-1,a-1);}catch(_){} } el.dispatchEvent(new Event("input",{bubbles:true})); };
   function draw(){
     box.innerHTML=""; box.classList.toggle("alpha",mode==="alpha");
-    let keys;
-    if(mode==="num"){ keys=["7","8","9","⌫","4","5","6","C","1","2","3","-","0",".",",",...(opt.extra||[])]; if(opt.alpha) keys.push("ABC"); keys.push("キーボード"); if(opt.ok) keys.push("OK"); }
-    else { const L="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(c=>upper?c:c.toLowerCase()); keys=[...L,upper?"大":"小","⌫","123","C"]; if(opt.ok) keys.push("OK"); }
-    keys.forEach(k=>{ const btn=document.createElement("button"); btn.type="button"; btn.textContent=k;
-      if(["⌫","C","キーボード","ABC","123","大","小"].includes(k)) btn.className="fn"; if(k==="OK") btn.className="ok";
+    // every key = [label, action]; actions are separate from labels so the letter "C" never clears the field
+    const T=c=>[c,"ins:"+c]; let keys;
+    if(mode==="num"){ keys=[...["7","8","9"].map(T),["⌫","back"],...["4","5","6"].map(T),["C","clear"],...["1","2","3","-","0",".",","].map(T),...(opt.extra||[]).map(T)]; if(opt.alpha) keys.push(["ABC","alpha"]); keys.push(["キーボード","kbd"]); if(opt.ok) keys.push(["OK","ok"]); }
+    else { keys=[...("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(c=>T(upper?c:c.toLowerCase()))),[upper?"大":"小","case"],["⌫","back"],["123","num"],["C","clear"]]; if(opt.ok) keys.push(["OK","ok"]); }
+    keys.forEach(([label,act])=>{ const btn=document.createElement("button"); btn.type="button"; btn.textContent=label;
+      if(!act.startsWith("ins:")) btn.className=act==="ok"?"ok":"fn";
       btn.addEventListener("pointerdown",e=>e.preventDefault()); // keep the caret in the field
       btn.onclick=()=>{ const el=input();
-        if(k==="⌫") back();
-        else if(k==="C"){ el.value=""; el.dispatchEvent(new Event("input",{bubbles:true})); }
-        else if(k==="キーボード"){ el.setAttribute("inputmode",opt.mode||"text"); box.hidden=true; el.blur(); setTimeout(()=>el.focus(),30); }
-        else if(k==="OK"){ opt.ok(); }
-        else if(k==="ABC"){ mode="alpha"; draw(); }
-        else if(k==="123"){ mode="num"; draw(); }
-        else if(k==="大"||k==="小"){ upper=!upper; draw(); } // shows the current case: 大 = capitals, tap for small letters
-        else ins(k); };
+        if(act==="back") back();
+        else if(act==="clear"){ el.value=""; el.dispatchEvent(new Event("input",{bubbles:true})); }
+        else if(act==="kbd"){ el.setAttribute("inputmode",opt.mode||"text"); box.hidden=true; el.blur(); setTimeout(()=>el.focus(),30); }
+        else if(act==="ok"){ opt.ok(); }
+        else if(act==="alpha"){ mode="alpha"; draw(); }
+        else if(act==="num"){ mode="num"; draw(); }
+        else if(act==="case"){ upper=!upper; draw(); } // label shows the current case: 大 = capitals, tap for small letters
+        else ins(act.slice(4)); };
       box.appendChild(btn); });
   }
   box._reset=()=>{ mode="num"; upper=true; draw(); };
