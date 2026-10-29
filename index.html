@@ -126,6 +126,12 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 .sknote{font-size:12px;color:var(--muted)}
 #skZoom{font-size:13px;color:var(--muted);min-width:3.5em;text-align:center;font-variant-numeric:tabular-nums}
 @media (max-width:760px){.skmain{flex-direction:column}.sktools{width:auto;max-height:40%}}
+/* big keypad */
+.kp{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:min(520px,100%)}
+.kp button{min-height:62px;font-size:26px;font-weight:700;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none;font-variant-numeric:tabular-nums}
+.kp button:active{background:var(--accent-soft)}
+.kp button.fn{font-size:17px;font-weight:700;background:var(--accent-soft)}
+.kp button.ok{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);
   padding:10px 16px;border-radius:10px;z-index:30;font-size:14px;max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:no-preference){.toast{transition:opacity .2s}}
@@ -133,7 +139,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 
 <div class="bar">
   <div class="bar-row">
-    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v17</span></span>
+    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v18</span></span>
     <select id="formSel" class="formsel" aria-label="帳票を選ぶ"></select>
     <div class="grp">
       <button class="btn sm" id="bNew">新規</button>
@@ -199,7 +205,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 <div class="scrim" id="skModal" hidden>
   <div class="sheetbox" role="dialog" aria-modal="true" aria-labelledby="skTitle">
     <div class="skhead">
-      <div><h2 id="skTitle">略図</h2><div class="sub" id="skHint">ペンで描きます。2本指で拡大・移動できます。方眼は印刷されません。</div></div>
+      <div><h2 id="skTitle">略図</h2><div class="sub" id="skHint">Apple Pencilで描きます。指は1本で移動、2本で拡大・縮小。方眼は印刷されません。</div></div>
       <div class="row"><button class="btn" id="skCancel">キャンセル</button><button class="btn primary" id="skOk">OK</button></div>
     </div>
     <div class="skmain">
@@ -255,10 +261,11 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
   <div class="sheetbox" role="dialog" aria-modal="true" aria-labelledby="skTxtTitle" style="width:min(520px,100%)">
     <h2 id="skTxtTitle">文字</h2>
     <textarea id="skTxtIn" class="txt" style="min-height:80px"></textarea>
+    <div class="kp" id="skKp" hidden></div>
     <div id="skDimOpts" class="skgrp" hidden>
       <span class="sklab">寸法線の位置</span>
       <div class="skrow"><button class="btn" id="skDimFlip" type="button">反対側へ</button>
-        <label class="skrow sknote" id="skDimOffRow" style="flex:1">図形からの距離 <input type="range" id="skDimOff" min="0.5" max="12" step="0.5" value="2" style="flex:1"> <span id="skDimOffV">2gd</span></label></div>
+        <label class="skrow sknote" id="skDimOffRow" style="flex:1">図形からの距離 <input type="range" id="skDimOff" min="0.5" max="12" step="0.5" value="4" style="flex:1"> <span id="skDimOffV">4gd</span></label></div>
       <span class="sknote">寸法の数値（例：3,000）を入れてください。空のままでもかまいません。</span>
     </div>
     <div class="row end"><button class="btn danger" id="skTxtDel" style="margin-right:auto">消す</button><button class="btn" id="skTxtCancel">キャンセル</button><button class="btn primary" id="skTxtOk">OK</button></div>
@@ -269,6 +276,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
   <div class="sheetbox" role="dialog" aria-modal="true" aria-labelledby="txtTitle">
     <h2 id="txtTitle">文字入力</h2>
     <input id="txtIn" class="txt" autocomplete="off">
+    <div class="kp" id="txtKp" hidden></div>
     <textarea id="txtArea" class="txt" hidden></textarea>
     <div class="choices" id="choices"></div>
     <div class="row end">
@@ -290,10 +298,8 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
       <div class="row">
         <span class="sub">太さ</span>
         <div class="seg" role="group" aria-label="ペンの太さ"><button data-pw="0.006">細</button><button data-pw="0.009">中</button><button data-pw="0.013">太</button></div>
-        <span class="sub">書ける入力</span>
-        <div class="seg" role="group" aria-label="書ける入力"><button data-po="auto">自動</button><button data-po="pen">ペンのみ</button><button data-po="all">指も可</button></div>
       </div>
-      <div class="sub" style="margin-top:6px">自動：Apple Pencilを使った時点で、手のひらや指の線を無視します。</div>
+      <div class="sub" style="margin-top:6px">手書きはApple Pencil（パソコンではマウス）だけで書けます。指は画面の移動・拡大に使います。</div>
     </fieldset>
     <fieldset><legend>プルダウンの一覧（1行に1つ）</legend>
       <div class="set-grid">
@@ -332,6 +338,13 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
   </div>
 </div>
 
+<div class="scrim" id="kpModal" hidden style="z-index:40">
+  <div class="sheetbox" role="dialog" aria-modal="true" aria-labelledby="kpTitle" style="width:min(560px,100%)">
+    <h2 id="kpTitle">数値</h2>
+    <input id="kpIn" class="txt" inputmode="none" autocomplete="off">
+    <div class="kp" id="kpPad"></div>
+  </div>
+</div>
 <div class="scrim" id="dlModal" hidden>
   <div class="sheetbox" role="dialog" aria-modal="true" aria-labelledby="dlTitle" style="width:min(520px,100%)">
     <h2 id="dlTitle">ファイルができました</h2>
@@ -633,8 +646,33 @@ function openCell(c){ hl=c.key; render(); if(c.kind==="sketch") openSketch(c); e
 function below(c){ if(!c.row||c.row>=30) return null; return BYKEY[c.key.replace(/^([LR])\d+_/,`$1${c.row+1}_`)]||null; }
 function closeHl(){ hl=null; render(); }
 
+/* ================= big keypad ================= */
+// keys: digits, point, minus (+ extra symbols for dimension values). "キーボード" switches to the iPad's own keyboard.
+function buildPad(box,input,opt){
+  box.innerHTML=""; const keys=["7","8","9","⌫","4","5","6","クリア","1","2","3","-","0",".",",",...(opt.extra||[]),"キーボード"]; if(opt.ok) keys.push("OK");
+  const ins=t=>{ const el=input(); const a=el.selectionStart??el.value.length, b=el.selectionEnd??el.value.length; el.value=el.value.slice(0,a)+t+el.value.slice(b); const c=a+t.length; try{el.setSelectionRange(c,c);}catch(_){} el.dispatchEvent(new Event("input",{bubbles:true})); };
+  keys.forEach(k=>{ const b=document.createElement("button"); b.type="button"; b.textContent=k;
+    if(["⌫","クリア","キーボード"].includes(k)) b.className="fn"; if(k==="OK") b.className="ok";
+    b.addEventListener("pointerdown",e=>e.preventDefault()); // keep the caret in the field
+    b.onclick=()=>{ const el=input();
+      if(k==="⌫"){ const a=el.selectionStart??el.value.length, z=el.selectionEnd??el.value.length; if(a!==z){ el.value=el.value.slice(0,a)+el.value.slice(z); try{el.setSelectionRange(a,a);}catch(_){} } else if(a>0){ el.value=el.value.slice(0,a-1)+el.value.slice(a); try{el.setSelectionRange(a-1,a-1);}catch(_){} } el.dispatchEvent(new Event("input",{bubbles:true})); }
+      else if(k==="クリア"){ el.value=""; el.dispatchEvent(new Event("input",{bubbles:true})); }
+      else if(k==="キーボード"){ el.setAttribute("inputmode",opt.mode||"text"); box.hidden=true; el.blur(); setTimeout(()=>el.focus(),30); }
+      else if(k==="OK"){ opt.ok(); }
+      else ins(k); };
+    box.appendChild(b); });
+}
+function showPad(box,el,mode){ box.hidden=false; el.setAttribute("inputmode","none"); el.dataset.mode=mode; }
+function hidePad(box,el,mode){ box.hidden=true; el.setAttribute("inputmode",mode||"text"); }
+// a separate keypad dialog for the small gd fields in the sketch tools
+const kpM=document.getElementById("kpModal"), kpIn=document.getElementById("kpIn"); let kpTarget=null;
+buildPad(document.getElementById("kpPad"),()=>kpIn,{mode:"decimal",ok:()=>{ if(kpTarget){ kpTarget.value=kpIn.value.trim(); kpTarget.dispatchEvent(new Event("input",{bubbles:true})); } kpM.hidden=true; }});
+function openKp(target,title){ kpTarget=target; document.getElementById("kpTitle").textContent=title; kpIn.value=target.value; kpIn.setAttribute("inputmode","none"); document.getElementById("kpPad").hidden=false; kpM.hidden=false; setTimeout(()=>{kpIn.focus(); try{kpIn.setSelectionRange(kpIn.value.length,kpIn.value.length);}catch(_){} },30); }
+kpIn.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); if(kpTarget){ kpTarget.value=kpIn.value.trim(); kpTarget.dispatchEvent(new Event("input",{bubbles:true})); } kpM.hidden=true; } });
+
 /* ================= text modal ================= */
 const tM=document.getElementById("txtModal"), tIn=document.getElementById("txtIn"), tArea=document.getElementById("txtArea"), choicesEl=document.getElementById("choices");
+buildPad(document.getElementById("txtKp"),()=>tIn,{mode:"decimal"});
 let tCell=null;
 const LISTKEY={koushu:"koushu",shubetsu:"shubetsu",item:"item",person:"person"};
 function openText(c){
@@ -647,6 +685,7 @@ function openText(c){
   choicesEl.hidden=!L.length;
   document.getElementById("tNext").hidden=!c.row;
   document.getElementById("tClear").hidden=!c.num;
+  const kp=document.getElementById("txtKp"); if(c.num){ showPad(kp,tIn,"decimal"); } else hidePad(kp,tIn,"text");
   tM.hidden=false; setTimeout(()=>{el.focus(); el.select&&el.select();},30);
 }
 function commitText(next){
@@ -740,7 +779,7 @@ function openPad(c){
   strokes=v?v.s.map(a=>a.slice()):[]; sign=(v&&v.sign)||"auto"; padPenW=v&&v.s.length?v.w:prefs.pen;
   padImg=c.kind==="sketch"?cur.img:null;
   document.getElementById("padTitle").textContent=c.name;
-  document.getElementById("padSub").textContent=c.kind==="sketch"?"大きく描くと、略図の欄の大きさに縮小して収まります。":"大きく書いてOKを押すと、欄の大きさに縮小して収まります。";
+  document.getElementById("padSub").textContent="Apple Pencilで書きます。 "+(c.kind==="sketch"?"大きく描くと、略図の欄の大きさに縮小して収まります。":"大きく書いてOKを押すと、欄の大きさに縮小して収まります。");
   document.getElementById("signBox").hidden=!(c.kind==="e1"||c.kind==="e2");
   document.getElementById("imgRow").hidden=c.kind!=="sketch";
   document.getElementById("recRow").hidden=c.kind==="sketch";
@@ -801,12 +840,7 @@ function setSign(x){sign=x;updSign();drawPad(); if(pCell&&isErr(pCell)){const ne
 document.getElementById("sgAuto").onclick=()=>setSign("auto");
 document.getElementById("sgPlus").onclick=()=>setSign("+");
 document.getElementById("sgMinus").onclick=()=>setSign("-");
-function accept(e){
-  if(e.pointerType==="pen") penSeen=true;
-  if(prefs.penOnly==="pen") return e.pointerType==="pen";
-  if(prefs.penOnly==="all") return true;
-  return !(penSeen&&e.pointerType==="touch");
-}
+function accept(e){ if(e.pointerType==="pen") penSeen=true; return e.pointerType!=="touch"; } // Apple Pencil (or a PC mouse) writes; fingers never do
 let activeId=null;
 function pt(e){const r=pad.getBoundingClientRect(); return [Math.round(Math.min(1000,Math.max(0,(e.clientX-r.left)/r.width*1000))),Math.round(Math.min(1000,Math.max(0,(e.clientY-r.top)/r.height*1000)))];}
 pad.addEventListener("pointerdown",e=>{ if(!accept(e)||activeId!==null) return; e.preventDefault(); activeId=e.pointerId; try{pad.setPointerCapture(e.pointerId)}catch(_){} live=pt(e); drawPad(); });
@@ -1146,7 +1180,7 @@ function hitItem(it,bx,by,tol){ // in box px space
 }
 // --- pointers: pen (or a single finger when no pen is used) draws; two fingers zoom / move; with a pen, one finger moves
 const skTouch=new Map(); let skDrawId=null, skGest=null, skErased=false, skDrag=null;
-function skNavOnly(e){ return e.pointerType==="touch" && (prefs.penOnly==="pen" || (prefs.penOnly!=="all" && penSeen)); }
+function skNavOnly(e){ return e.pointerType==="touch"; } // fingers: move / zoom only
 skCv.addEventListener("pointerdown",e=>{
   e.preventDefault(); if(e.pointerType==="pen") penSeen=true;
   try{skCv.setPointerCapture(e.pointerId)}catch(_){}
@@ -1187,7 +1221,7 @@ function skBegin(p){
   else if((T==="rect"||T==="ellipse"||T==="poly")&&placeByNumber(T,[0,0])){ const sp=snapPt(p); const it=placeByNumber(T,sp.p); skPush(); SK.items.push(it); SK.selSet=[it]; skDone(); skLastPlace=true; skPaintTools(); }
   else if(T==="poly"){ const sp=snapPt(p); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; SK.live=Object.assign({t:"poly",p:[sp.p[0],sp.p[1]],r:0,n:polyN(),rot:-90},base); }
   else if(T==="sym"){ /* placed on release */ }
-  else if(["line","arrow","dim","rect","ellipse"].includes(T)){ const sp=snapPt(p); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; p=sp.p; SK.live=Object.assign({t:T,p:[p[0],p[1],p[0],p[1]]},base); if(T==="dim"){ SK.live.o=-2*(1000/48); SK.live._a=sp.hit==="obj"?{own:sp.own,kind:sp.kind}:null; } }
+  else if(["line","arrow","dim","rect","ellipse"].includes(T)){ const sp=snapPt(p); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; p=sp.p; SK.live=Object.assign({t:T,p:[p[0],p[1],p[0],p[1]]},base); if(T==="dim"){ SK.live.o=-4*(1000/48); SK.live._a=sp.hit==="obj"?{own:sp.own,kind:sp.kind}:null; } }
   else if(T==="move"){ const tol=12/SK.z; const hit=[...SK.items].reverse().find(it=>hitItem(it,p[0],p[1],tol));
     if(hit){ const ss=selLive(), was=ss.includes(hit); const set=was?ss:groupOf(hit);
       skDrag={mode:"m",items:set.slice(),origs:set.map(it=>it.p.slice()),p0:p,pre:skSnap(),hit,was,prev:ss.slice()}; SK.selSet=was?ss:ss.concat(groupOf(hit).filter(x=>!ss.includes(x))); }
@@ -1251,12 +1285,14 @@ function skErase(p){ const tol=10/SK.z; const keep=SK.items.filter(it=>!hitItem(
 // text entry
 const skTM=document.getElementById("skTxtModal"), skTIn=document.getElementById("skTxtIn"); let skTEdit=null, skTPos=null;
 let skTDim=null, skTDimNew=false, skTDimO=0;
-function skAskText(hit,p){ skTDim=null; document.getElementById("skDimOpts").hidden=true; document.getElementById("skTxtTitle").textContent="文字";
+buildPad(document.getElementById("skKp"),()=>skTIn,{mode:"text",extra:["φ","R","t","±"]});
+function skAskText(hit,p){ skTDim=null; document.getElementById("skDimOpts").hidden=true; hidePad(document.getElementById("skKp"),skTIn,"text"); document.getElementById("skTxtTitle").textContent="文字";
   skTEdit=hit||null; skTPos=p; skTIn.value=hit?hit.s:""; document.getElementById("skTxtDel").hidden=!hit; skTM.hidden=false; setTimeout(()=>skTIn.focus(),30); }
 function skAskDim(d,isNew){ skTEdit=null; skTDim=d; skTDimNew=isNew; skTDimO=d.o; if(!isNew) skPush();
   document.getElementById("skTxtTitle").textContent="寸法"; document.getElementById("skDimOpts").hidden=false;
   document.getElementById("skDimOffRow").hidden=!!d.circ; document.getElementById("skDimFlip").textContent=d.circ?"数値を反対側へ":"反対側へ";
   const og=Math.round(Math.abs(d.o!=null?d.o:45)/(1000/48)*2)/2; document.getElementById("skDimOff").value=og; document.getElementById("skDimOffV").textContent=fmtGd(og)+"gd"; skTIn.value=d.s||""; document.getElementById("skTxtDel").hidden=false;
+  showPad(document.getElementById("skKp"),skTIn,"text");
   skTM.hidden=false; skDraw(); setTimeout(()=>skTIn.focus(),30); }
 document.getElementById("skDimFlip").onclick=()=>{ if(!skTDim) return; skTDim.o=-(skTDim.o!=null?skTDim.o:-45); skDraw(); };
 document.getElementById("skDimOff").addEventListener("input",e=>{ if(!skTDim) return; const sg=(skTDim.o!=null?skTDim.o:-45)<0?-1:1; skTDim.o=sg*(+e.target.value)*(1000/48); document.getElementById("skDimOffV").textContent=fmtGd(+e.target.value)+"gd"; skDraw(); });
@@ -1278,7 +1314,9 @@ document.getElementById("skGroup").onclick=()=>{ const ss=selLive(); if(ss.lengt
   ["⊕","◎","○","●","△","▲","▽","▼","□","■","◇","×","※","℄","φ","R","±","°","→","←","↑","↓","Ｎ","BM"].forEach(t=>{ const b=document.createElement("button"); b.type="button"; b.textContent=t; b.onclick=()=>{SK.sym=t; skPaintTools();}; pal.appendChild(b); });
   const row=document.getElementById("skFillRow"); [["","なし","#ffffff"],["gray","灰","#b5b9bf"],["yellow","黄","#e9cf99"],["blue","青","#a9bbef"],["red","赤","#e2a9a9"],["green","緑","#a8cfb5"]].forEach(([k,n,c])=>{ const b=document.createElement("button"); b.type="button"; b.className="fillsw"; b.dataset.fill=k; b.title=n; b.setAttribute("aria-label","塗り "+n); b.style.background=c; if(!k){ b.textContent="／"; b.style.color="#c62828"; } b.onclick=()=>setFillHatch({fill:k||null}); row.appendChild(b); });
   document.querySelectorAll("[data-hatch]").forEach(b=>b.onclick=()=>setFillHatch({hatch:b.dataset.hatch||null}));
-  ["skNW","skNH","skND","skNN","skNS"].forEach(id=>document.getElementById(id).addEventListener("keydown",e=>{ if(e.key==="Enter") e.target.blur(); }));
+  const NT={skNW:"横（gd）",skNH:"縦（gd）",skND:"直径（gd）",skNN:"頂点の数",skNS:"サイズ（gd）"};
+  ["skNW","skNH","skND","skNN","skNS"].forEach(id=>{ const el=document.getElementById(id); el.setAttribute("inputmode","none"); el.readOnly=true;
+    el.addEventListener("click",()=>openKp(el,NT[id])); el.addEventListener("keydown",e=>{ if(e.key==="Enter") e.target.blur(); }); });
 })();
 function setFillHatch(o){ const cl=selLive().filter(it=>it.t==="rect"||it.t==="ellipse"||it.t==="poly"); if(!cl.length) return; skPush();
   cl.forEach(it=>{ if("fill" in o){ if(o.fill) it.fill=o.fill; else delete it.fill; } if("hatch" in o){ if(o.hatch) it.hatch=o.hatch; else delete it.hatch; } }); skPaintTools(); skDraw(); }
