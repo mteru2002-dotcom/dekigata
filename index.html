@@ -105,7 +105,8 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 #skArea{align-items:stretch;justify-content:stretch}
 .numrow input{width:4.2em;min-height:40px;font-size:16px;padding:2px 6px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
 .sympal{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
-.sympal button{min-height:40px;font-size:18px;padding:0}
+.sympal button{min-height:44px;font-size:20px;padding:0;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.sympal button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,89,12,.55);font-weight:700}
 .fillsw{width:34px;height:34px;border-radius:6px;border:1px solid var(--line);cursor:pointer;padding:0}
 .fillsw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--accent)}
 .sktools{flex:none;width:300px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:2px}
@@ -132,7 +133,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 
 <div class="bar">
   <div class="bar-row">
-    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v16</span></span>
+    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v17</span></span>
     <select id="formSel" class="formsel" aria-label="帳票を選ぶ"></select>
     <div class="grp">
       <button class="btn sm" id="bNew">新規</button>
@@ -219,7 +220,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
           <div class="skrow numrow" id="skNumPoly">頂点 <input id="skNN" inputmode="numeric" value="6"> サイズ <input id="skNS" inputmode="decimal" placeholder="—"> gd</div>
           <span class="sknote" id="skNumNote"></span>
         </div>
-        <div class="skgrp" id="skSym" hidden><span class="sklab">記号</span><div class="sympal" id="skSymPal"></div><span class="sknote">記号を選んで、置きたい所をタップします。</span></div>
+        <div class="skgrp" id="skSym" hidden><span class="sklab">記号　選択中：<b id="skSymCur" style="font-size:16px;color:var(--fg)"></b></span><div class="sympal" id="skSymPal"></div><span class="sknote">記号を選んで、置きたい所をタップします。</span></div>
         <div class="skgrp" id="skFill" hidden><span class="sklab">塗り・ハッチング（選んだ図形）</span>
           <div class="skrow" id="skFillRow"></div>
           <div class="skrow"><button data-hatch="">ハッチなし</button><button data-hatch="s">斜線</button><button data-hatch="x">交差</button></div>
@@ -227,7 +228,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
         <div class="skgrp"><span class="sklab">色</span><div class="skrow" id="skColors"></div></div>
         <div class="skgrp"><span class="sklab">太さ・文字の大きさ</span><div class="skrow"><button data-w="0.004">細</button><button data-w="0.007">中</button><button data-w="0.012">太</button></div></div>
         <div class="skgrp"><span class="sklab">選択・グループ</span>
-          <div class="skrow"><button id="skGroup" aria-pressed="false">グループ化</button></div>
+          <div class="skrow"><button id="skGroup" aria-pressed="false">グループ化</button><button id="skEdit" hidden>文字・寸法値を直す</button></div>
           <span class="sknote" id="skSelNote"></span>
         </div>
         <div class="skgrp"><span class="sklab">吸着</span>
@@ -257,7 +258,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
     <div id="skDimOpts" class="skgrp" hidden>
       <span class="sklab">寸法線の位置</span>
       <div class="skrow"><button class="btn" id="skDimFlip" type="button">反対側へ</button>
-        <label class="skrow sknote" id="skDimOffRow" style="flex:1">図形からの距離 <input type="range" id="skDimOff" min="10" max="250" value="45" style="flex:1"></label></div>
+        <label class="skrow sknote" id="skDimOffRow" style="flex:1">図形からの距離 <input type="range" id="skDimOff" min="0.5" max="12" step="0.5" value="2" style="flex:1"> <span id="skDimOffV">2gd</span></label></div>
       <span class="sknote">寸法の数値（例：3,000）を入れてください。空のままでもかまいません。</span>
     </div>
     <div class="row end"><button class="btn danger" id="skTxtDel" style="margin-right:auto">消す</button><button class="btn" id="skTxtCancel">キャンセル</button><button class="btn primary" id="skTxtOk">OK</button></div>
@@ -880,10 +881,13 @@ function drawDim(ctx,it,X,Y,w,h,lw){
   ctx.lineWidth=thin; ctx.beginPath(); if(!it.circ)
   for(const [px,py] of [[g.ax,g.ay],[g.bx,g.by]]){ ctx.moveTo(px+g.nx*g.gap,py+g.ny*g.gap); ctx.lineTo(px+g.nx*(g.oa+g.ext),py+g.ny*(g.oa+g.ext)); }
   ctx.stroke();
-  ctx.lineWidth=lw; ctx.beginPath(); ctx.moveTo(...g.d1); ctx.lineTo(...g.d2); ctx.stroke();
-  const hs=Math.max(lw*4,w*0.022);
+  const hs=Math.max(lw*4,w*0.022), DL=Math.hypot(g.d2[0]-g.d1[0],g.d2[1]-g.d1[1]), narrow=!it.circ&&DL<hs*2.6;
+  ctx.lineWidth=lw; ctx.beginPath();
+  if(narrow){ ctx.moveTo(g.d1[0]-g.ux*hs*2.2,g.d1[1]-g.uy*hs*2.2); ctx.lineTo(g.d2[0]+g.ux*hs*2.2,g.d2[1]+g.uy*hs*2.2); } else { ctx.moveTo(...g.d1); ctx.lineTo(...g.d2); }
+  ctx.stroke();
   const head=(ax,ay,bx,by)=>{const a=Math.atan2(ay-by,ax-bx); ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax-hs*Math.cos(a-0.35),ay-hs*Math.sin(a-0.35)); ctx.lineTo(ax-hs*Math.cos(a+0.35),ay-hs*Math.sin(a+0.35)); ctx.closePath(); ctx.fill();};
-  if(it.cen!=="b") head(...g.d2,...g.d1); if(it.cen!=="a") head(...g.d1,...g.d2); // circle radius: no arrow at the centre
+  if(narrow){ head(g.d2[0],g.d2[1],g.d2[0]+g.ux,g.d2[1]+g.uy); head(g.d1[0],g.d1[1],g.d1[0]-g.ux,g.d1[1]-g.uy); } // narrow gap: arrows outside, pointing in
+  else { if(it.cen!=="b") head(...g.d2,...g.d1); if(it.cen!=="a") head(...g.d1,...g.d2); } // circle radius: no arrow at the centre
   if(it.s){ const fs=(it.fs||0.03)*h; let a=Math.atan2(g.uy,g.ux); if(a>Math.PI/2-0.01) a-=Math.PI; if(a<-Math.PI/2-0.01) a+=Math.PI;
     let mx=(g.d1[0]+g.d2[0])/2+g.nx*fs*0.62, my=(g.d1[1]+g.d2[1])/2+g.ny*fs*0.62;
     if(Math.abs(g.uy)>0.85){ // up-down dimension: keep the value level (reads left to right), set beside the line
@@ -898,7 +902,7 @@ function shapePath(ctx,it,X,Y,w){ const p=it.p; ctx.beginPath();
   if(it.t==="rect"){ ctx.rect(X(Math.min(p[0],p[2])),Y(Math.min(p[1],p[3])),Math.abs(X(p[2])-X(p[0])),Math.abs(Y(p[3])-Y(p[1]))); }
   else if(it.t==="ellipse"){ const cx=(X(p[0])+X(p[2]))/2, cy=(Y(p[1])+Y(p[3]))/2; ctx.ellipse(cx,cy,Math.max(Math.abs(X(p[2])-X(p[0]))/2,0.5),Math.max(Math.abs(Y(p[3])-Y(p[1]))/2,0.5),0,0,Math.PI*2); }
   else if(it.t==="poly"){ polyPts(it,X,Y,w).forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath(); } }
-const FILLS={gray:"rgba(120,120,120,.28)",yellow:"rgba(250,204,21,.38)",blue:"rgba(59,130,246,.28)",red:"rgba(239,68,68,.28)",green:"rgba(34,197,94,.28)"};
+const FILLS={gray:"rgba(55,65,81,.3)",yellow:"rgba(202,138,4,.3)",blue:"rgba(29,78,216,.3)",red:"rgba(185,28,28,.3)",green:"rgba(21,128,61,.3)"};
 function paintInside(ctx,it,w,lw){
   if(it.fill&&FILLS[it.fill]){ ctx.save(); ctx.fillStyle=FILLS[it.fill]; ctx.fill(); ctx.restore(); }
   if(it.hatch){ ctx.save(); ctx.clip(); const g=w/48*1.2, big=w*3; ctx.lineWidth=Math.max(lw*0.6,0.5); ctx.beginPath();
@@ -933,12 +937,12 @@ function skPaintTools(){
   document.querySelectorAll("[data-w]").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.w===SK.w)));
   document.getElementById("skGrid").setAttribute("aria-pressed",String(SK.grid));
   { const ss=selLive(), grouped=ss.length>1&&ss.every(it=>it.g&&it.g===ss[0].g), gb=document.getElementById("skGroup");
-    gb.setAttribute("aria-pressed",String(grouped)); gb.textContent=grouped?"グループ化中":"グループ化"; gb.disabled=!grouped&&ss.length<2;
+    gb.setAttribute("aria-pressed",String(grouped)); const one=ss.length===1?ss[0]:null; document.getElementById("skEdit").hidden=!(one&&(one.t==="text"||one.t==="dim")); gb.textContent=grouped?"グループ化中":"グループ化"; gb.disabled=!grouped&&ss.length<2;
     document.getElementById("skSelNote").textContent=ss.length?(ss.length+"個を選択中"+(grouped?"（グループ）":ss.some(it=>it.g)?"（グループを含む）":"")):"選択モードで図形をタップすると1つずつ選べます。何もない所をタップすると選択をやめます。"; }
   { const T=SK.tool; document.getElementById("skNum").hidden=!(T==="rect"||T==="ellipse"||T==="poly");
     document.getElementById("skNumRect").hidden=T!=="rect"; document.getElementById("skNumCirc").hidden=T!=="ellipse"; document.getElementById("skNumPoly").hidden=T!=="poly";
     document.getElementById("skNumNote").textContent=T==="rect"?"数値を入れたら、四角の左上にしたい所をタップ。空欄ならなぞって描きます。":"数値を入れたら、中心にしたい所をタップ。空欄ならなぞって描きます。"+(T==="poly"?"サイズは頂点から反対側までの長さ（外接円の直径）です。":"");
-    document.getElementById("skSym").hidden=T!=="sym"; document.querySelectorAll("#skSymPal button").forEach(b=>b.setAttribute("aria-pressed",String(b.textContent===SK.sym)));
+    document.getElementById("skSym").hidden=T!=="sym"; document.querySelectorAll("#skSymPal button").forEach(b=>b.setAttribute("aria-pressed",String(b.textContent===SK.sym))); document.getElementById("skSymCur").textContent=SK.sym;
     const cl=selLive().filter(it=>it.t==="rect"||it.t==="ellipse"||it.t==="poly"); document.getElementById("skFill").hidden=!cl.length;
     const f0=cl[0]&&cl[0].fill||"", h0=cl[0]&&cl[0].hatch||""; document.querySelectorAll("#skFillRow .fillsw").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.fill||"")===f0))); document.querySelectorAll("[data-hatch]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.hatch===h0))); }
   document.getElementById("skOSnap").setAttribute("aria-pressed",String(SK.snap)); document.getElementById("skGSnap").setAttribute("aria-pressed",String(SK.gsnap));
@@ -1043,6 +1047,7 @@ function textBox(it){ const H_=SK.ch, fs=(it.fs||0.03)*H_; skX.save(); skX.font=
   return {w:w/SK.cw*1000, h:(L.length*fs*1.2)/SK.ch*1000, top:(it.p[1]-fs*0.6/SK.ch*1000)}; }
 function bbox(p){ let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9; for(let i=0;i<p.length;i+=2){x1=Math.min(x1,p[i]);x2=Math.max(x2,p[i]);y1=Math.min(y1,p[i+1]);y2=Math.max(y2,p[i+1]);} return [x1,y1,x2,y2]; }
 function handlesOf(it){ const p=it.p;
+  if(it.t==="dim"&&!it.circ){ const g=dimGeom(it,v=>v/1000*SK.cw,v=>v/1000*SK.ch,SK.cw); return [{x:p[0],y:p[1],k:"e0"},{x:p[2],y:p[3],k:"e1"},{x:(g.d1[0]+g.d2[0])/2/SK.cw*1000,y:(g.d1[1]+g.d2[1])/2/SK.ch*1000,k:"o"}]; }
   if(it.t==="line"||it.t==="arrow"||it.t==="dim") return [{x:p[0],y:p[1],k:"e0"},{x:p[2],y:p[3],k:"e1"}];
   if(it.t==="rect") return [{x:p[0],y:p[1],k:"c0"},{x:p[2],y:p[1],k:"c1"},{x:p[2],y:p[3],k:"c2"},{x:p[0],y:p[3],k:"c3"}];
   if(it.t==="ellipse"){ const a=Math.min(p[0],p[2]),b=Math.min(p[1],p[3]),c=Math.max(p[0],p[2]),d=Math.max(p[1],p[3]),mx=(a+c)/2,my=(b+d)/2;
@@ -1071,6 +1076,10 @@ function skResize(p){
   else if(k[0]==="q"){ let a=Math.min(o[0],o[2]),b=Math.min(o[1],o[3]),c=Math.max(o[0],o[2]),dd=Math.max(o[1],o[3]);
     if(k==="q0") b=Math.min(q[1],dd-4); if(k==="q1") c=Math.max(q[0],a+4); if(k==="q2") dd=Math.max(q[1],b+4); if(k==="q3") a=Math.min(q[0],c-4); it.p=[a,b,c,dd]; }
   else if(k[0]==="c"){ const n=o.slice(); if(k==="c0"){n[0]=q[0];n[1]=q[1];} if(k==="c1"){n[2]=q[0];n[1]=q[1];} if(k==="c2"){n[2]=q[0];n[3]=q[1];} if(k==="c3"){n[0]=q[0];n[3]=q[1];} it.p=n; }
+  else if(k==="o"){ // dimension line distance from the object, in whole grid squares when grid snap is on
+    const ax=o[0]/1000*SK.cw, ay=o[1]/1000*SK.ch, bx=o[2]/1000*SK.cw, by=o[3]/1000*SK.ch, L=Math.hypot(bx-ax,by-ay)||1, nx=-(by-ay)/L, ny=(bx-ax)/L;
+    let op=((pp[0]/1000*SK.cw-ax)*nx+(pp[1]/1000*SK.ch-ay)*ny)/SK.cw*1000; const u=(1000/48);
+    if(SK.gsnap) op=Math.round(op/u)*u; if(Math.abs(op)<u*0.5) op=(op<0?-1:1)*u*0.5; it.o=op; SK.snapAt=null; SK.snapK=null; }
   else if(k==="r"){ const r=Math.hypot((pp[0]-o[0])/1000*SK.cw,(pp[1]-o[1])/1000*SK.ch); it.r=Math.max(2,Math.round(r/SK.cw*1000)); SK.snapAt=null; SK.snapK=null; }
   else if(k[0]==="z"){ const a=Math.min(o[0],o[2]),b=Math.min(o[1],o[3]),c=Math.max(o[0],o[2]),dd=Math.max(o[1],o[3]), i=+k[1];
     const cx=[a,c,c,a][i], cy=[b,b,dd,dd][i], ox=[c,a,a,c][i], oy=[dd,dd,b,b][i];
@@ -1178,7 +1187,7 @@ function skBegin(p){
   else if((T==="rect"||T==="ellipse"||T==="poly")&&placeByNumber(T,[0,0])){ const sp=snapPt(p); const it=placeByNumber(T,sp.p); skPush(); SK.items.push(it); SK.selSet=[it]; skDone(); skLastPlace=true; skPaintTools(); }
   else if(T==="poly"){ const sp=snapPt(p); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; SK.live=Object.assign({t:"poly",p:[sp.p[0],sp.p[1]],r:0,n:polyN(),rot:-90},base); }
   else if(T==="sym"){ /* placed on release */ }
-  else if(["line","arrow","dim","rect","ellipse"].includes(T)){ const sp=snapPt(p); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; p=sp.p; SK.live=Object.assign({t:T,p:[p[0],p[1],p[0],p[1]]},base); if(T==="dim"){ SK.live.o=-45; SK.live._a=sp.hit==="obj"?{own:sp.own,kind:sp.kind}:null; } }
+  else if(["line","arrow","dim","rect","ellipse"].includes(T)){ const sp=snapPt(p); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; p=sp.p; SK.live=Object.assign({t:T,p:[p[0],p[1],p[0],p[1]]},base); if(T==="dim"){ SK.live.o=-2*(1000/48); SK.live._a=sp.hit==="obj"?{own:sp.own,kind:sp.kind}:null; } }
   else if(T==="move"){ const tol=12/SK.z; const hit=[...SK.items].reverse().find(it=>hitItem(it,p[0],p[1],tol));
     if(hit){ const ss=selLive(), was=ss.includes(hit); const set=was?ss:groupOf(hit);
       skDrag={mode:"m",items:set.slice(),origs:set.map(it=>it.p.slice()),p0:p,pre:skSnap(),hit,was,prev:ss.slice()}; SK.selSet=was?ss:ss.concat(groupOf(hit).filter(x=>!ss.includes(x))); }
@@ -1218,6 +1227,7 @@ function skEnd(p){
     if(x2-x1>4||y2-y1>4){ let set=SK.items.filter(it=>{const b=itemBox(it); return b[0]<=x2&&b[2]>=x1&&b[1]<=y2&&b[3]>=y1;}); const add=[]; set.forEach(it=>groupOf(it).forEach(g=>{ if(!set.includes(g)&&!add.includes(g)) add.push(g); })); SK.selSet=set.concat(add); }
     skPaintTools(); skDraw(); return; }
   if(d&&d.mode==="m"){
+    if(!d.moved&&d.was&&d.prev.length===1&&(d.hit.t==="text"||d.hit.t==="dim")){ SK.selSet=[d.hit]; skEditItem(d.hit); skPaintTools(); skDraw(); return; } // tap again: edit
     if(!d.moved){ const g=groupOf(d.hit); SK.selSet=d.was?d.prev.filter(x=>!g.includes(x)):d.prev.concat(g.filter(x=>!d.prev.includes(x))); } // tap: add / remove
     else if(!d.was){ SK.selSet=d.items.slice(); } // dragged an unselected object: it alone is selected
     skPaintTools(); skDraw(); return; }
@@ -1246,10 +1256,10 @@ function skAskText(hit,p){ skTDim=null; document.getElementById("skDimOpts").hid
 function skAskDim(d,isNew){ skTEdit=null; skTDim=d; skTDimNew=isNew; skTDimO=d.o; if(!isNew) skPush();
   document.getElementById("skTxtTitle").textContent="寸法"; document.getElementById("skDimOpts").hidden=false;
   document.getElementById("skDimOffRow").hidden=!!d.circ; document.getElementById("skDimFlip").textContent=d.circ?"数値を反対側へ":"反対側へ";
-  document.getElementById("skDimOff").value=Math.abs(d.o!=null?d.o:45); skTIn.value=d.s||""; document.getElementById("skTxtDel").hidden=false;
+  const og=Math.round(Math.abs(d.o!=null?d.o:45)/(1000/48)*2)/2; document.getElementById("skDimOff").value=og; document.getElementById("skDimOffV").textContent=fmtGd(og)+"gd"; skTIn.value=d.s||""; document.getElementById("skTxtDel").hidden=false;
   skTM.hidden=false; skDraw(); setTimeout(()=>skTIn.focus(),30); }
 document.getElementById("skDimFlip").onclick=()=>{ if(!skTDim) return; skTDim.o=-(skTDim.o!=null?skTDim.o:-45); skDraw(); };
-document.getElementById("skDimOff").addEventListener("input",e=>{ if(!skTDim) return; const sg=(skTDim.o!=null?skTDim.o:-45)<0?-1:1; skTDim.o=sg*(+e.target.value); skDraw(); });
+document.getElementById("skDimOff").addEventListener("input",e=>{ if(!skTDim) return; const sg=(skTDim.o!=null?skTDim.o:-45)<0?-1:1; skTDim.o=sg*(+e.target.value)*(1000/48); document.getElementById("skDimOffV").textContent=fmtGd(+e.target.value)+"gd"; skDraw(); });
 document.getElementById("skTxtCancel").onclick=()=>{ skTM.hidden=true;
   if(skTDim){ if(skTDimNew){ /* keep the new dimension, without text */ } else { const h=SK.hist.pop(); if(h) skRestore(h); skHistBtns(); } skTDim=null; skDraw(); } };
 document.getElementById("skTxtOk").onclick=()=>{ const v=skTIn.value.replace(/\r/g,"").trim(); skTM.hidden=true;
@@ -1266,12 +1276,14 @@ document.getElementById("skGrid").onclick=()=>{SK.grid=!SK.grid; skPaintTools();
 document.getElementById("skGroup").onclick=()=>{ const ss=selLive(); if(ss.length>1&&ss.every(it=>it.g&&it.g===ss[0].g)){ skPush(); ss.forEach(it=>{delete it.g;}); skPaintTools(); skDraw(); toast("グループを解除しました"); return; } if(ss.length<2) return; skPush(); const id="g"+Date.now().toString(36); ss.forEach(it=>it.g=id); SK.selSet=ss.slice(); skPaintTools(); skDraw(); toast("グループにしました"); };
 (function(){ const pal=document.getElementById("skSymPal");
   ["⊕","◎","○","●","△","▲","▽","▼","□","■","◇","×","※","℄","φ","R","±","°","→","←","↑","↓","Ｎ","BM"].forEach(t=>{ const b=document.createElement("button"); b.type="button"; b.textContent=t; b.onclick=()=>{SK.sym=t; skPaintTools();}; pal.appendChild(b); });
-  const row=document.getElementById("skFillRow"); [["","なし","#ffffff"],["gray","灰","#bdbdbd"],["yellow","黄","#fde68a"],["blue","青","#bfdbfe"],["red","赤","#fecaca"],["green","緑","#bbf7d0"]].forEach(([k,n,c])=>{ const b=document.createElement("button"); b.type="button"; b.className="fillsw"; b.dataset.fill=k; b.title=n; b.setAttribute("aria-label","塗り "+n); b.style.background=c; if(!k){ b.textContent="／"; b.style.color="#c62828"; } b.onclick=()=>setFillHatch({fill:k||null}); row.appendChild(b); });
+  const row=document.getElementById("skFillRow"); [["","なし","#ffffff"],["gray","灰","#b5b9bf"],["yellow","黄","#e9cf99"],["blue","青","#a9bbef"],["red","赤","#e2a9a9"],["green","緑","#a8cfb5"]].forEach(([k,n,c])=>{ const b=document.createElement("button"); b.type="button"; b.className="fillsw"; b.dataset.fill=k; b.title=n; b.setAttribute("aria-label","塗り "+n); b.style.background=c; if(!k){ b.textContent="／"; b.style.color="#c62828"; } b.onclick=()=>setFillHatch({fill:k||null}); row.appendChild(b); });
   document.querySelectorAll("[data-hatch]").forEach(b=>b.onclick=()=>setFillHatch({hatch:b.dataset.hatch||null}));
   ["skNW","skNH","skND","skNN","skNS"].forEach(id=>document.getElementById(id).addEventListener("keydown",e=>{ if(e.key==="Enter") e.target.blur(); }));
 })();
 function setFillHatch(o){ const cl=selLive().filter(it=>it.t==="rect"||it.t==="ellipse"||it.t==="poly"); if(!cl.length) return; skPush();
   cl.forEach(it=>{ if("fill" in o){ if(o.fill) it.fill=o.fill; else delete it.fill; } if("hatch" in o){ if(o.hatch) it.hatch=o.hatch; else delete it.hatch; } }); skPaintTools(); skDraw(); }
+function skEditItem(it){ if(it.t==="text") skAskText(it,it.p); else if(it.t==="dim") skAskDim(it,false); }
+document.getElementById("skEdit").onclick=()=>{ const ss=selLive(); if(ss.length===1) skEditItem(ss[0]); };
 document.getElementById("skOSnap").onclick=()=>{SK.snap=!SK.snap; skPaintTools();};
 document.getElementById("skGSnap").onclick=()=>{SK.gsnap=!SK.gsnap; skPaintTools();};
 function skZoomBy(f){ const cx=SK.vw/2, cy=SK.vh/2, bx=(cx+SK.ox)/SK.z, by=(cy+SK.oy)/SK.z; SK.z=Math.max(1,Math.min(8,SK.z*f)); SK.ox=bx*SK.z-cx; SK.oy=by*SK.z-cy; skClamp(); skDraw(); }
