@@ -101,7 +101,13 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 .skhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
 .skmain{flex:1 1 auto;min-height:0;display:flex;gap:12px}
 #skArea{flex:1 1 auto;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
-#skPad{display:block;touch-action:none;background:#fff;border:2px solid #263a4e;border-radius:4px}
+#skPad{display:block;touch-action:none;background:#e6eaee;border-radius:4px}
+#skArea{align-items:stretch;justify-content:stretch}
+.numrow input{width:4.2em;min-height:40px;font-size:16px;padding:2px 6px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.sympal{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.sympal button{min-height:40px;font-size:18px;padding:0}
+.fillsw{width:34px;height:34px;border-radius:6px;border:1px solid var(--line);cursor:pointer;padding:0}
+.fillsw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--accent)}
 .sktools{flex:none;width:300px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:2px}
 .skgrp{display:flex;flex-direction:column;gap:6px}
 .sklab{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em}
@@ -126,7 +132,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 
 <div class="bar">
   <div class="bar-row">
-    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v15</span></span>
+    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v16</span></span>
     <select id="formSel" class="formsel" aria-label="帳票を選ぶ"></select>
     <div class="grp">
       <button class="btn sm" id="bNew">新規</button>
@@ -202,9 +208,21 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
           <div class="tgrid" id="skTools">
             <button data-tool="pen">ペン</button><button data-tool="line">直線</button><button data-tool="arrow">矢印</button>
             <button data-tool="dim">寸法線</button><button data-tool="rect">四角</button><button data-tool="ellipse">丸</button>
-            <button data-tool="text">文字</button><button data-tool="pt" id="skPtBtn">測点</button><button data-tool="eraser">消しゴム</button>
+            <button data-tool="poly">多角形</button><button data-tool="sym">記号</button><button data-tool="text">文字</button>
+            <button data-tool="pt" id="skPtBtn">測点</button><button data-tool="eraser">消しゴム</button>
           </div>
           <div class="sknote" id="skToolNote"></div>
+        </div>
+        <div class="skgrp" id="skNum" hidden><span class="sklab">数値で描く（1gd＝方眼1マス）</span>
+          <div class="skrow numrow" id="skNumRect">横 <input id="skNW" inputmode="decimal" placeholder="—"> gd × 縦 <input id="skNH" inputmode="decimal" placeholder="—"> gd</div>
+          <div class="skrow numrow" id="skNumCirc">直径 <input id="skND" inputmode="decimal" placeholder="—"> gd</div>
+          <div class="skrow numrow" id="skNumPoly">頂点 <input id="skNN" inputmode="numeric" value="6"> サイズ <input id="skNS" inputmode="decimal" placeholder="—"> gd</div>
+          <span class="sknote" id="skNumNote"></span>
+        </div>
+        <div class="skgrp" id="skSym" hidden><span class="sklab">記号</span><div class="sympal" id="skSymPal"></div><span class="sknote">記号を選んで、置きたい所をタップします。</span></div>
+        <div class="skgrp" id="skFill" hidden><span class="sklab">塗り・ハッチング（選んだ図形）</span>
+          <div class="skrow" id="skFillRow"></div>
+          <div class="skrow"><button data-hatch="">ハッチなし</button><button data-hatch="s">斜線</button><button data-hatch="x">交差</button></div>
         </div>
         <div class="skgrp"><span class="sklab">色</span><div class="skrow" id="skColors"></div></div>
         <div class="skgrp"><span class="sklab">太さ・文字の大きさ</span><div class="skrow"><button data-w="0.004">細</button><button data-w="0.007">中</button><button data-w="0.012">太</button></div></div>
@@ -826,7 +844,7 @@ function shrinkImage(file){return new Promise((res,rej)=>{const fr=new FileReade
 // items: {t:pen|line|arrow|dim|rect|ellipse|text|pt, c:color, w:width(÷box width), p:[x,y,...] in 0..1000 of the box, s:text, n:number, fs:size(÷box height)}
 function skItemsOf(f){ const v=f.ink&&f.ink.sketch; if(!v) return []; if(v.items) return v.items; if(v.s) return v.s.map(a=>({t:"pen",c:"#111111",w:v.w||0.009,p:a.slice()})); return []; }
 const FS_OF={0.004:0.026,0.007:0.032,0.012:0.042};
-function drawItems(ctx,items,x,y,w,h,minW){
+function drawItems(ctx,items,x,y,w,h,minW){ for(const it of items){ Object.defineProperty(it,"_ox",{value:x,writable:true,configurable:true,enumerable:false}); Object.defineProperty(it,"_oy",{value:y,writable:true,configurable:true,enumerable:false}); }
   const X=v=>x+v/1000*w, Y=v=>y+v/1000*h;
   ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round";
   for(const it of items){
@@ -840,8 +858,8 @@ function drawItems(ctx,items,x,y,w,h,minW){
       const head=(ax,ay,bx,by)=>{const a=Math.atan2(ay-by,ax-bx); ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax-hs*Math.cos(a-0.4),ay-hs*Math.sin(a-0.4)); ctx.lineTo(ax-hs*Math.cos(a+0.4),ay-hs*Math.sin(a+0.4)); ctx.closePath(); ctx.fill();};
       if(it.t==="arrow") head(x2,y2,x1,y1); continue;
     }
-    if(it.t==="rect"){ const a=X(Math.min(p[0],p[2])),b=Y(Math.min(p[1],p[3])); ctx.strokeRect(a,b,Math.abs(X(p[2])-X(p[0])),Math.abs(Y(p[3])-Y(p[1]))); continue; }
-    if(it.t==="ellipse"){ const cx=(X(p[0])+X(p[2]))/2, cy=(Y(p[1])+Y(p[3]))/2, rx=Math.abs(X(p[2])-X(p[0]))/2, ry=Math.abs(Y(p[3])-Y(p[1]))/2; ctx.beginPath(); ctx.ellipse(cx,cy,Math.max(rx,0.5),Math.max(ry,0.5),0,0,Math.PI*2); ctx.stroke(); continue; }
+    if(it.t==="rect"||it.t==="ellipse"||it.t==="poly"){ shapePath(ctx,it,X,Y,w); paintInside(ctx,it,w,lw); shapePath(ctx,it,X,Y,w); ctx.stroke(); continue; }
+    if(it.t==="sym"){ const fs=(it.fs||0.045)*h; ctx.font=`700 ${fs}px ${FONT}`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(String(it.s),X(p[0]),Y(p[1])); continue; }
     if(it.t==="text"){ const fs=(it.fs||0.03)*h; ctx.font=`700 ${fs}px ${FONT}`; ctx.textAlign="left"; ctx.textBaseline="middle"; String(it.s||"").split("\n").forEach((L,i)=>ctx.fillText(L,X(p[0]),Y(p[1])+i*fs*1.2)); continue; }
     if(it.t==="pt"){ const fs=(it.fs||0.03)*h, r=fs*0.78; ctx.lineWidth=Math.max(fs*0.08,minW); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(X(p[0]),Y(p[1]),r,0,Math.PI*2); ctx.fill(); ctx.stroke();
       ctx.fillStyle=it.c||"#111"; const t=String(it.n); ctx.font=`700 ${fs*(t.length>2?0.62:t.length>1?0.8:0.95)}px ${FONT}`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(t,X(p[0]),Y(p[1])+fs*0.04); continue; }
@@ -873,8 +891,21 @@ function drawDim(ctx,it,X,Y,w,h,lw){
       mx=(g.d1[0]+g.d2[0])/2+g.nx*(tw/2+fs*0.35); my=(g.d1[1]+g.d2[1])/2+g.ny*(fs*0.62); }
     ctx.save(); ctx.translate(mx,my); ctx.rotate(a); ctx.font=`700 ${fs}px ${FONT}`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(String(it.s),0,0); ctx.restore(); }
 }
+// closed shapes: rectangle, circle/ellipse, regular polygon (centre p, radius r as 1/1000 of box width, n vertices)
+function polyPts(it,X,Y,w){ const n=Math.max(3,it.n||6), r=(it.r||0)/1000*w, cx=X(it.p[0]), cy=Y(it.p[1]), rot=(it.rot!=null?it.rot:-90)*Math.PI/180, out=[];
+  for(let i=0;i<n;i++){ const a=rot+i*2*Math.PI/n; out.push([cx+r*Math.cos(a), cy+r*Math.sin(a)]); } return out; }
+function shapePath(ctx,it,X,Y,w){ const p=it.p; ctx.beginPath();
+  if(it.t==="rect"){ ctx.rect(X(Math.min(p[0],p[2])),Y(Math.min(p[1],p[3])),Math.abs(X(p[2])-X(p[0])),Math.abs(Y(p[3])-Y(p[1]))); }
+  else if(it.t==="ellipse"){ const cx=(X(p[0])+X(p[2]))/2, cy=(Y(p[1])+Y(p[3]))/2; ctx.ellipse(cx,cy,Math.max(Math.abs(X(p[2])-X(p[0]))/2,0.5),Math.max(Math.abs(Y(p[3])-Y(p[1]))/2,0.5),0,0,Math.PI*2); }
+  else if(it.t==="poly"){ polyPts(it,X,Y,w).forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath(); } }
+const FILLS={gray:"rgba(120,120,120,.28)",yellow:"rgba(250,204,21,.38)",blue:"rgba(59,130,246,.28)",red:"rgba(239,68,68,.28)",green:"rgba(34,197,94,.28)"};
+function paintInside(ctx,it,w,lw){
+  if(it.fill&&FILLS[it.fill]){ ctx.save(); ctx.fillStyle=FILLS[it.fill]; ctx.fill(); ctx.restore(); }
+  if(it.hatch){ ctx.save(); ctx.clip(); const g=w/48*1.2, big=w*3; ctx.lineWidth=Math.max(lw*0.6,0.5); ctx.beginPath();
+    const ox=it._ox||0, oy=it._oy||0; for(let d=-big; d<big; d+=g){ ctx.moveTo(ox+d,oy-1); ctx.lineTo(ox+d+big,oy+big-1); if(it.hatch==="x"){ ctx.moveTo(ox+d+big,oy-1); ctx.lineTo(ox+d,oy+big-1); } }
+    ctx.stroke(); ctx.restore(); } }
 function drawGrid(ctx,x,y,w,h,lw){
-  const g=w/24; ctx.save(); ctx.strokeStyle="rgba(110,135,160,.42)"; ctx.lineWidth=lw; ctx.setLineDash([lw*4,lw*4]); ctx.beginPath();
+  const g=w/48; ctx.save(); ctx.strokeStyle="rgba(110,135,160,.34)"; ctx.lineWidth=lw; ctx.setLineDash([lw*4,lw*4]); ctx.beginPath();
   for(let i=1;i*g<w-0.5;i++){ctx.moveTo(x+i*g,y);ctx.lineTo(x+i*g,y+h);} for(let j=1;j*g<h-0.5;j++){ctx.moveTo(x,y+j*g);ctx.lineTo(x+w,y+j*g);}
   ctx.stroke(); ctx.restore();
 }
@@ -890,10 +921,10 @@ function drawSketch(ctx,d,x,y,w,h,opt){
   drawItems(ctx,d.items||[],x,y,w,h,opt.minW||1);
   ctx.restore();
 }
-const SK={cont:false,selSet:[],fut:[],snapAt:null,snapK:null,snap:true,gsnap:true,sel:null,tool:"move",color:"#111111",w:0.004,grid:true,z:1,ox:0,oy:0,items:[],img:null,imgT:null,hist:[],cw:0,ch:0,dpr:1,cell:null,live:null};
+const SK={sym:"⊕",cont:false,selSet:[],fut:[],snapAt:null,snapK:null,snap:true,gsnap:true,sel:null,tool:"move",color:"#111111",w:0.004,grid:true,z:1,ox:0,oy:0,items:[],img:null,imgT:null,hist:[],cw:0,ch:0,dpr:1,cell:null,live:null};
 const skM=document.getElementById("skModal"), skCv=document.getElementById("skPad"), skX=skCv.getContext("2d"), skArea=document.getElementById("skArea");
 const SKCOL=[["#111111","黒"],["#C62828","赤"],["#1d4ed8","青"],["#2e7d32","緑"]];
-const TOOLNOTE={pen:"自由に描きます。",line:"なぞった始点と終点を結びます。端点・中点・丸の8分点（四半点と45°の点）に吸い付き、水平・垂直・45°に近いとそろえます。",arrow:"最初にタッチした所が矢印の先になり、引っぱった方へ伸びます。",dim:"測りたい2点をなぞると、寸法補助線つきの寸法線を引き、数値を入れる画面が出ます。引いた寸法線をタップすると直せます。",move:"選択モード：図形をタップで選択（もう一度で外す）、引っぱると移動、何もない所をなぞると囲んで選択、タップで選択をやめます。道具は1回押すと1回だけ、2回続けて押すと連続で使えます。",rect:"対角をなぞると四角を描きます。",ellipse:"なぞると正円を描きます。楕円にするときは、描いたあとに四半点の□で伸ばします。",text:"文字を置く位置をタップします。置いた文字をタップすると直せます。",pt:"タップした位置に測点番号を置きます。番号は自動で増えます。",eraser:"消したい線や文字をなぞると、まとめて消えます。",img:"画像をドラッグして位置を合わせます。大きさは下のつまみで変えます。"};
+const TOOLNOTE={pen:"自由に描きます。",line:"なぞった始点と終点を結びます。端点・中点・丸の8分点（四半点と45°の点）に吸い付き、水平・垂直・45°に近いとそろえます。",arrow:"最初にタッチした所が矢印の先になり、引っぱった方へ伸びます。",dim:"測りたい2点をなぞると、寸法補助線つきの寸法線を引き、数値を入れる画面が出ます。引いた寸法線をタップすると直せます。",move:"選択モード：図形をタップで選択（もう一度で外す）、引っぱると移動、何もない所をなぞると囲んで選択、タップで選択をやめます。道具は1回押すと1回だけ、2回続けて押すと連続で使えます。",poly:"中心から外へなぞると正多角形を描きます。頂点の数は下の欄で決めます。",sym:"記号を選んで、置きたい所をタップします。",rect:"対角をなぞると四角を描きます。描いている間は大きさを「〇gd×〇gd」で表示します。",ellipse:"なぞると正円を描きます（直径を「φ〇gd」で表示）。楕円にするときは、描いたあとに四半点の□で伸ばします。",text:"文字を置く位置をタップします。置いた文字をタップすると直せます。",pt:"タップした位置に測点番号を置きます。番号は自動で増えます。",eraser:"消したい線や文字をなぞると、まとめて消えます。",img:"画像をドラッグして位置を合わせます。大きさは下のつまみで変えます。"};
 function nextPt(){ return SK.items.reduce((m,it)=>it.t==="pt"?Math.max(m,it.n||0):m,0)+1; }
 function skPaintTools(){
   document.querySelectorAll("#skTools [data-tool], #skImgMove").forEach(b=>{ if(!b.dataset.label) b.dataset.label=b.textContent; const on=b.dataset.tool===SK.tool;
@@ -903,7 +934,13 @@ function skPaintTools(){
   document.getElementById("skGrid").setAttribute("aria-pressed",String(SK.grid));
   { const ss=selLive(), grouped=ss.length>1&&ss.every(it=>it.g&&it.g===ss[0].g), gb=document.getElementById("skGroup");
     gb.setAttribute("aria-pressed",String(grouped)); gb.textContent=grouped?"グループ化中":"グループ化"; gb.disabled=!grouped&&ss.length<2;
-    document.getElementById("skSelNote").textContent=ss.length?(ss.length+"個を選択中"+(grouped?"（グループ）":ss.some(it=>it.g)?"（グループを含む）":"")):"「移動」でタップすると1つずつ選べます。何もない所をタップすると選択をやめます。"; }
+    document.getElementById("skSelNote").textContent=ss.length?(ss.length+"個を選択中"+(grouped?"（グループ）":ss.some(it=>it.g)?"（グループを含む）":"")):"選択モードで図形をタップすると1つずつ選べます。何もない所をタップすると選択をやめます。"; }
+  { const T=SK.tool; document.getElementById("skNum").hidden=!(T==="rect"||T==="ellipse"||T==="poly");
+    document.getElementById("skNumRect").hidden=T!=="rect"; document.getElementById("skNumCirc").hidden=T!=="ellipse"; document.getElementById("skNumPoly").hidden=T!=="poly";
+    document.getElementById("skNumNote").textContent=T==="rect"?"数値を入れたら、四角の左上にしたい所をタップ。空欄ならなぞって描きます。":"数値を入れたら、中心にしたい所をタップ。空欄ならなぞって描きます。"+(T==="poly"?"サイズは頂点から反対側までの長さ（外接円の直径）です。":"");
+    document.getElementById("skSym").hidden=T!=="sym"; document.querySelectorAll("#skSymPal button").forEach(b=>b.setAttribute("aria-pressed",String(b.textContent===SK.sym)));
+    const cl=selLive().filter(it=>it.t==="rect"||it.t==="ellipse"||it.t==="poly"); document.getElementById("skFill").hidden=!cl.length;
+    const f0=cl[0]&&cl[0].fill||"", h0=cl[0]&&cl[0].hatch||""; document.querySelectorAll("#skFillRow .fillsw").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.fill||"")===f0))); document.querySelectorAll("[data-hatch]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.hatch===h0))); }
   document.getElementById("skOSnap").setAttribute("aria-pressed",String(SK.snap)); document.getElementById("skGSnap").setAttribute("aria-pressed",String(SK.gsnap));
   document.getElementById("skZoom").textContent=Math.round(SK.z*100)+"%";
   document.getElementById("skToolNote").textContent=TOOLNOTE[SK.tool]||"";
@@ -911,7 +948,7 @@ function skPaintTools(){
   const pc=Math.round((SK.imgT?SK.imgT.s:1)*100); document.getElementById("skSize").value=pc; document.getElementById("skSizeV").textContent=pc+"%";
 }
 (function(){ const box=document.getElementById("skColors"); SKCOL.forEach(([c,n])=>{const b=document.createElement("button"); b.className="skcol"; b.dataset.c=c; b.style.background=c; b.setAttribute("aria-label",n); b.onclick=()=>{SK.color=c;skPaintTools();}; box.appendChild(b);}); })();
-let skLastTap={t:null,at:0};
+let skLastTap={t:null,at:0}, skLastPlace=false;
 document.querySelectorAll("#skTools [data-tool], #skImgMove").forEach(b=>b.onclick=()=>{
   const t=b.dataset.tool, now=Date.now(), dbl=skLastTap.t===t&&now-skLastTap.at<450; skLastTap={t,at:now};
   if(SK.cont&&SK.tool===t){ SK.tool="move"; SK.cont=false; skLastTap={t:null,at:0}; }
@@ -925,29 +962,55 @@ function skDone(){ if(!SK.cont&&SK.tool!=="move"){ SK.tool="move"; } } // one-sh
 document.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{SK.w=+b.dataset.w; skPaintTools();});
 function openSketch(c){
   SK.cell=c; SK.items=JSON.parse(JSON.stringify(skItemsOf(cur))); SK.img=cur.img||null; SK.imgT=cur.imgT?Object.assign({},cur.imgT):{cx:500,cy:500,s:1};
-  SK.hist=[]; SK.fut=[]; SK.z=1; SK.ox=0; SK.oy=0; SK.live=null; SK.tool="move"; SK.cont=false;
+  SK.hist=[]; SK.fut=[]; SK.z=1; SK.live=null; SK.tool="move"; SK.cont=false;
   skM.hidden=false; skSize(); skPaintTools(); skHistBtns(); skDraw();
 }
-function skSize(){
-  const a=SK.cell.w/SK.cell.h; const aw=skArea.clientWidth-8, ah=skArea.clientHeight-8;
-  let w=aw, h=w/a; if(h>ah){h=ah;w=h*a;}
-  SK.cw=Math.max(50,Math.round(w)); SK.ch=Math.max(50,Math.round(h)); SK.dpr=Math.min(window.devicePixelRatio||1,3);
-  skCv.style.width=SK.cw+"px"; skCv.style.height=SK.ch+"px"; skCv.width=Math.round(SK.cw*SK.dpr); skCv.height=Math.round(SK.ch*SK.dpr); skClamp();
+function skSize(){ // the canvas fills the whole drawing area; the paper sits inside it and zooms / pans across all of it
+  const a=SK.cell.w/SK.cell.h; SK.vw=Math.max(100,skArea.clientWidth); SK.vh=Math.max(100,skArea.clientHeight);
+  let w=SK.vw-16, h=w/a; if(h>SK.vh-16){h=SK.vh-16;w=h*a;}
+  SK.cw=Math.max(50,Math.round(w)); SK.ch=Math.max(50,Math.round(h)); SK.dpr=Math.min(window.devicePixelRatio||1,2.5);
+  skCv.style.width=SK.vw+"px"; skCv.style.height=SK.vh+"px"; skCv.width=Math.round(SK.vw*SK.dpr); skCv.height=Math.round(SK.vh*SK.dpr); skClamp();
 }
 window.addEventListener("resize",()=>{ if(!skM.hidden){ skSize(); skDraw(); } });
-function skClamp(){ SK.z=Math.max(1,Math.min(5,SK.z)); SK.ox=Math.max(0,Math.min(SK.cw*SK.z-SK.cw,SK.ox)); SK.oy=Math.max(0,Math.min(SK.ch*SK.z-SK.ch,SK.oy)); }
+function skClamp(){ SK.z=Math.max(1,Math.min(8,SK.z)); const pw=SK.cw*SK.z, ph=SK.ch*SK.z, m=24;
+  SK.ox = pw+2*m<=SK.vw ? -(SK.vw-pw)/2 : Math.max(-m,Math.min(pw-SK.vw+m,SK.ox));
+  SK.oy = ph+2*m<=SK.vh ? -(SK.vh-ph)/2 : Math.max(-m,Math.min(ph-SK.vh+m,SK.oy)); }
 function skDraw(){
-  const d=SK.dpr; skX.setTransform(1,0,0,1,0,0); skX.fillStyle="#fff"; skX.fillRect(0,0,skCv.width,skCv.height);
+  const d=SK.dpr; skX.setTransform(1,0,0,1,0,0); skX.fillStyle="#dde3e9"; skX.fillRect(0,0,skCv.width,skCv.height);
   skX.setTransform(d*SK.z,0,0,d*SK.z,-SK.ox*d,-SK.oy*d);
+  skX.save(); skX.shadowColor="rgba(0,0,0,.18)"; skX.shadowBlur=8/SK.z; skX.fillStyle="#fff"; skX.fillRect(0,0,SK.cw,SK.ch); skX.restore();
   const items=SK.live?SK.items.concat([SK.live]):SK.items;
   drawSketch(skX,{img:SK.img,imgT:SK.imgT,items},0,0,SK.cw,SK.ch,{grid:SK.grid,gridW:1/SK.z,minW:1.2/SK.z});
   drawHandles(); drawBand();
   if(SK.snapAt){ const x=SK.snapAt[0]/1000*SK.cw, y=SK.snapAt[1]/1000*SK.ch; skX.save(); skX.strokeStyle="#e8590c"; skX.lineWidth=2/SK.z;
     if(SK.snapK==="grid"){ const r=4/SK.z; skX.beginPath(); skX.arc(x,y,r,0,Math.PI*2); skX.stroke(); } else { const r=7/SK.z; skX.strokeRect(x-r,y-r,r*2,r*2); } skX.restore(); }
-  skX.setTransform(1,0,0,1,0,0); document.getElementById("skZoom").textContent=Math.round(SK.z*100)+"%";
+  skX.save(); skX.strokeStyle="#263a4e"; skX.lineWidth=1.5/SK.z; skX.strokeRect(0,0,SK.cw,SK.ch); skX.restore();
+  skX.setTransform(1,0,0,1,0,0); drawLabel(); document.getElementById("skZoom").textContent=Math.round(SK.z*100)+"%";
 }
 function skPt(e){ const r=skCv.getBoundingClientRect(); const px=e.clientX-r.left, py=e.clientY-r.top;
-  return [Math.round(((px+SK.ox)/SK.z)/SK.cw*1000), Math.round(((py+SK.oy)/SK.z)/SK.ch*1000)]; }
+  const c=v=>Math.max(0,Math.min(1000,v)); return [Math.round(c(((px+SK.ox)/SK.z)/SK.cw*1000)), Math.round(c(((py+SK.oy)/SK.z)/SK.ch*1000))]; }
+const GD=()=>SK.cw/48; // 1gd = one grid square (box px)
+const fmtGd=v=>{ const r=Math.round(v*10)/10; return (Math.abs(r-Math.round(r))<1e-9?String(Math.round(r)):r.toFixed(1)); };
+function numVal(id){ const v=parseFloat(String(document.getElementById(id).value).replace(/[０-９．]/g,c=>c==="．"?".":String.fromCharCode(c.charCodeAt(0)-0xFEE0))); return isFinite(v)&&v>0?v:0; }
+function shapeLabel(it){
+  if(!it) return null; const p=it.p, gd=GD();
+  if(it.t==="rect") return fmtGd(Math.abs(p[2]-p[0])/1000*SK.cw/gd)+"gd×"+fmtGd(Math.abs(p[3]-p[1])/1000*SK.ch/gd)+"gd";
+  if(it.t==="ellipse"){ const w=Math.abs(p[2]-p[0])/1000*SK.cw/gd, h=Math.abs(p[3]-p[1])/1000*SK.ch/gd; return Math.abs(w-h)<0.05?"φ"+fmtGd(w)+"gd":fmtGd(w)+"gd×"+fmtGd(h)+"gd"; }
+  if(it.t==="poly") return (it.n||6)+"角形 "+fmtGd(2*(it.r||0)/1000*SK.cw/gd)+"gd";
+  return null; }
+function drawLabel(){ // live size while drawing or stretching, shown on screen only
+  const it=SK.live||(skDrag&&skDrag.mode==="h"?skDrag.it:null); const t=shapeLabel(it); if(!t) return;
+  const b=itemBox(it); const x=b[2]/1000*SK.cw*SK.z-SK.ox+8, y=b[3]/1000*SK.ch*SK.z-SK.oy+8;
+  skX.save(); skX.setTransform(SK.dpr,0,0,SK.dpr,0,0); skX.font=`700 14px ${FONT}`; const w=skX.measureText(t).width+14;
+  const X=Math.min(Math.max(4,x),SK.vw-w-4), Y=Math.min(Math.max(4,y),SK.vh-28);
+  skX.fillStyle="rgba(31,78,121,.92)"; skX.beginPath(); skX.roundRect?skX.roundRect(X,Y,w,24,6):skX.rect(X,Y,w,24); skX.fill(); skX.fillStyle="#fff"; skX.textBaseline="middle"; skX.fillText(t,X+7,Y+12); skX.restore(); }
+function placeByNumber(T,p){ // tap with sizes filled in: rectangle from its top-left, circle / polygon from the centre
+  const gd=GD(), base={c:SK.color,w:SK.w}; let it=null;
+  if(T==="rect"){ const W=numVal("skNW"), H=numVal("skNH"); if(!(W&&H)) return null; it=Object.assign({t:"rect",p:[p[0],p[1],(p[0]+W*gd/SK.cw*1000),(p[1]+H*gd/SK.ch*1000)]},base); }
+  if(T==="ellipse"){ const D=numVal("skND"); if(!D) return null; const rx=D*gd/2/SK.cw*1000, ry=D*gd/2/SK.ch*1000; it=Object.assign({t:"ellipse",p:[(p[0]-rx),(p[1]-ry),(p[0]+rx),(p[1]+ry)]},base); }
+  if(T==="poly"){ const S=numVal("skNS"); if(!S) return null; it=Object.assign({t:"poly",p:[p[0],p[1]],r:(S*gd/2/SK.cw*1000),n:polyN(),rot:-90},base); }
+  return it; }
+function polyN(){ return Math.max(3,Math.min(24,Math.round(numVal("skNN")||6))); }
 function skSnap(){ return JSON.stringify({items:SK.items,img:SK.img,imgT:SK.imgT}); }
 function skPush(){ SK.hist.push(skSnap()); if(SK.hist.length>80) SK.hist.shift(); SK.fut=[]; skHistBtns(); }
 function skRestore(h){ const o=JSON.parse(h); SK.items=o.items; SK.img=o.img; SK.imgT=o.imgT; SK.selSet=[]; }
@@ -968,7 +1031,9 @@ function anchorsOf(it){ // [x,y,kind] points of one item that others can snap to
   else if(it.t==="ellipse"){ const a=Math.min(p[0],p[2]),b=Math.min(p[1],p[3]),c=Math.max(p[0],p[2]),d=Math.max(p[1],p[3]),mx=(a+c)/2,my=(b+d)/2;
     add(mx,b,"q");add(c,my,"q");add(mx,d,"q");add(a,my,"q");add(mx,my,"c");
     const rx=(c-a)/2, ry=(d-b)/2, k=Math.SQRT1_2; add(mx+rx*k,my-ry*k,"o");add(mx+rx*k,my+ry*k,"o");add(mx-rx*k,my+ry*k,"o");add(mx-rx*k,my-ry*k,"o"); } // eighth points (45°)
-  else if(it.t==="pt"||it.t==="text"){ add(p[0],p[1]); }
+  else if(it.t==="pt"||it.t==="text"||it.t==="sym"){ add(p[0],p[1]); }
+  else if(it.t==="poly"){ const V=polyPts(it,v=>v/1000*SK.cw,v=>v/1000*SK.ch,SK.cw).map(([x,y])=>[x/SK.cw*1000,y/SK.ch*1000]);
+    V.forEach(([x,y],i)=>{ add(x,y,"v"); const [x2,y2]=V[(i+1)%V.length]; add((x+x2)/2,(y+y2)/2,"m"); }); add(p[0],p[1],"c"); }
   else if(it.t==="pen"&&p.length>=4){ add(p[0],p[1]); add(p[p.length-2],p[p.length-1]); }
   return A;
 }
@@ -985,11 +1050,14 @@ function handlesOf(it){ const p=it.p;
   if(it.t==="pen"){ const b=bbox(p); return [{x:b[0],y:b[1],k:"b0"},{x:b[2],y:b[1],k:"b1"},{x:b[2],y:b[3],k:"b2"},{x:b[0],y:b[3],k:"b3"}]; }
   if(it.t==="text"){ const t=textBox(it); return [{x:p[0]+t.w,y:t.top+t.h,k:"s"}]; }
   if(it.t==="pt"){ const r=(it.fs||0.03)*SK.ch*0.78; return [{x:p[0]+r/SK.cw*1000*0.71,y:p[1]+r/SK.ch*1000*0.71,k:"s"}]; }
+  if(it.t==="sym"){ const r=(it.fs||0.045)*SK.ch*0.6; return [{x:p[0]+r/SK.cw*1000,y:p[1]+r/SK.ch*1000,k:"s"}]; }
+  if(it.t==="poly"){ const [x,y]=polyPts(it,v=>v/1000*SK.cw,v=>v/1000*SK.ch,SK.cw)[0]; return [{x:x/SK.cw*1000,y:y/SK.ch*1000,k:"r"}]; }
   return []; }
 function handleOut(it,h){ // outward unit direction (box px) for a handle
   const p=it.p, cw=SK.cw, ch=SK.ch, n=(x,y)=>{const l=Math.hypot(x,y)||1; return [x/l,y/l];};
   if(h.k==="e0") return n((p[0]-p[2])/1000*cw,(p[1]-p[3])/1000*ch);
   if(h.k==="e1") return n((p[2]-p[0])/1000*cw,(p[3]-p[1])/1000*ch);
+  if(h.k==="r"){ const cx=p[0]/1000*cw, cy=p[1]/1000*ch; return n(h.x/1000*cw-cx||0.001,h.y/1000*ch-cy); }
   if(h.k==="q0") return [0,-1]; if(h.k==="q1") return [1,0]; if(h.k==="q2") return [0,1]; if(h.k==="q3") return [-1,0];
   if(h.k[0]==="c"||h.k[0]==="b"||h.k[0]==="z"){ const b=bbox(p), cx=(b[0]+b[2])/2, cy=(b[1]+b[3])/2; return n((h.x-cx)/1000*cw||1,(h.y-cy)/1000*ch||1); }
   return [0,0]; }
@@ -1003,6 +1071,7 @@ function skResize(p){
   else if(k[0]==="q"){ let a=Math.min(o[0],o[2]),b=Math.min(o[1],o[3]),c=Math.max(o[0],o[2]),dd=Math.max(o[1],o[3]);
     if(k==="q0") b=Math.min(q[1],dd-4); if(k==="q1") c=Math.max(q[0],a+4); if(k==="q2") dd=Math.max(q[1],b+4); if(k==="q3") a=Math.min(q[0],c-4); it.p=[a,b,c,dd]; }
   else if(k[0]==="c"){ const n=o.slice(); if(k==="c0"){n[0]=q[0];n[1]=q[1];} if(k==="c1"){n[2]=q[0];n[1]=q[1];} if(k==="c2"){n[2]=q[0];n[3]=q[1];} if(k==="c3"){n[0]=q[0];n[3]=q[1];} it.p=n; }
+  else if(k==="r"){ const r=Math.hypot((pp[0]-o[0])/1000*SK.cw,(pp[1]-o[1])/1000*SK.ch); it.r=Math.max(2,Math.round(r/SK.cw*1000)); SK.snapAt=null; SK.snapK=null; }
   else if(k[0]==="z"){ const a=Math.min(o[0],o[2]),b=Math.min(o[1],o[3]),c=Math.max(o[0],o[2]),dd=Math.max(o[1],o[3]), i=+k[1];
     const cx=[a,c,c,a][i], cy=[b,b,dd,dd][i], ox=[c,a,a,c][i], oy=[dd,dd,b,b][i];
     const vx=(cx-ox)/1000*SK.cw, vy=(cy-oy)/1000*SK.ch, L2=vx*vx+vy*vy||1, wx=(pp[0]-ox)/1000*SK.cw, wy=(pp[1]-oy)/1000*SK.ch;
@@ -1010,11 +1079,13 @@ function skResize(p){
     it.p=[Math.min(ox,nx),Math.min(oy,ny),Math.max(ox,nx),Math.max(oy,ny)]; SK.snapAt=null; SK.snapK=null; }
   else if(k[0]==="b"){ const b=bbox(o), idx=+k[1]; const cx=[b[0],b[2],b[2],b[0]][idx], cy=[b[1],b[1],b[3],b[3]][idx], ox=[b[2],b[0],b[0],b[2]][idx], oy=[b[3],b[3],b[1],b[1]][idx];
     const sx=(cx-ox)?(q[0]-ox)/(cx-ox):1, sy=(cy-oy)?(q[1]-oy)/(cy-oy):1; it.p=o.map((v,i)=>Math.round(i%2?oy+(v-oy)*sy:ox+(v-ox)*sx)); }
-  else if(k==="s"){ const ax=o[0], ay=o[1]; const d0=Math.hypot((d.h.x-ax)/1000*SK.cw,(d.h.y-ay)/1000*SK.ch)||1, d1=Math.hypot((pp[0]-ax)/1000*SK.cw,(pp[1]-ay)/1000*SK.ch);
+  else if(k==="s"){ const ax=o[0], ay=o[1]; const d0=Math.hypot((d.h.x-ax)/1000*SK.cw,(d.h.y-ay)/1000*SK.ch)||1, d1=Math.hypot((pp[0]-ax)/1000*SK.cw,(pp[1]-ay)/1000*SK.ch); if(!d.ofs) d.ofs=it.t==="sym"?0.045:0.03;
     it.fs=Math.max(0.01,Math.min(0.2,(d.ofs||0.03)*d1/d0)); }
 }
 function itemBox(it){ const p=it.p, u=v=>v; // 0..1000 box coords
   if(it.t==="text"){ const t=textBox(it); return [p[0],t.top,p[0]+t.w,t.top+t.h]; }
+  if(it.t==="sym"){ const r=(it.fs||0.045)*SK.ch*0.6, rx=r/SK.cw*1000, ry=r/SK.ch*1000; return [p[0]-rx,p[1]-ry,p[0]+rx,p[1]+ry]; }
+  if(it.t==="poly"){ return bbox([].concat(...polyPts(it,v=>v/1000*SK.cw,v=>v/1000*SK.ch,SK.cw).map(([x,y])=>[x/SK.cw*1000,y/SK.ch*1000]))); }
   if(it.t==="pt"){ const r=(it.fs||0.03)*SK.ch*0.78, rx=r/SK.cw*1000, ry=r/SK.ch*1000; return [p[0]-rx,p[1]-ry,p[0]+rx,p[1]+ry]; }
   if(it.t==="dim"){ const g=dimGeom(it,v=>v/1000*SK.cw,v=>v/1000*SK.ch,SK.cw); const pts=[p[0],p[1],p[2],p[3],g.d1[0]/SK.cw*1000,g.d1[1]/SK.ch*1000,g.d2[0]/SK.cw*1000,g.d2[1]/SK.ch*1000]; return bbox(pts); }
   return bbox(p); }
@@ -1034,7 +1105,7 @@ function drawHandles(){
 function drawBand(){ if(!skDrag||skDrag.mode!=="r") return; const a=skDrag.p0,b=skDrag.p1; skX.save(); skX.strokeStyle="#1f4e79"; skX.fillStyle="rgba(31,78,121,.08)"; skX.lineWidth=1/SK.z; skX.setLineDash([5/SK.z,4/SK.z]);
   const x=Math.min(a[0],b[0])/1000*SK.cw, y=Math.min(a[1],b[1])/1000*SK.ch, w=Math.abs(b[0]-a[0])/1000*SK.cw, h=Math.abs(b[1]-a[1])/1000*SK.ch; skX.fillRect(x,y,w,h); skX.strokeRect(x,y,w,h); skX.restore(); }
 function snapTargets(skip){ const T=[]; const sk=Array.isArray(skip)?skip:[skip]; for(const it of SK.items){ if(sk.includes(it)||it.t==="text") continue; for(const a of anchorsOf(it)) T.push([a[0],a[1],it,a[2]]); } return T; }
-function gridStep(){ const g=SK.cw/24; return [g/SK.cw*1000, g/SK.ch*1000]; }
+function gridStep(){ const g=SK.cw/48; return [g/SK.cw*1000, g/SK.ch*1000]; }
 function toGrid(p){ const [gx,gy]=gridStep(); return [Math.round(Math.round(p[0]/gx)*gx), Math.round(Math.round(p[1]/gy)*gy)]; }
 function nearestTarget(p,skip){ let best=null, bd=1e9;
   for(const t of snapTargets(skip)){ const d=Math.hypot((t[0]-p[0])/1000*SK.cw,(t[1]-p[1])/1000*SK.ch); if(d<bd){bd=d;best=t;} }
@@ -1054,10 +1125,14 @@ function hitItem(it,bx,by,tol){ // in box px space
     if(it.s){ const fs=(it.fs||0.03)*H_; const mx=(g.d1[0]+g.d2[0])/2+g.nx*fs*0.62, my=(g.d1[1]+g.d2[1])/2+g.ny*fs*0.62; if(Math.hypot(x-mx,y-my)<fs*Math.max(1,String(it.s).length*0.35)+tol) return true; }
     return false; }
   if(it.t==="line"||it.t==="arrow") return distSeg(x,y,X(p[0]),Y(p[1]),X(p[2]),Y(p[3]))<tol;
+  if(it.t==="rect"&&(it.fill||it.hatch)){ const a=Math.min(X(p[0]),X(p[2])),b=Math.min(Y(p[1]),Y(p[3])),c=Math.max(X(p[0]),X(p[2])),d=Math.max(Y(p[1]),Y(p[3])); if(x>=a&&x<=c&&y>=b&&y<=d) return true; }
+  if(it.t==="ellipse"&&(it.fill||it.hatch)){ const cx=(X(p[0])+X(p[2]))/2, cy=(Y(p[1])+Y(p[3]))/2, rx=Math.abs(X(p[2])-X(p[0]))/2||1, ry=Math.abs(Y(p[3])-Y(p[1]))/2||1; if(((x-cx)/rx)**2+((y-cy)/ry)**2<=1) return true; }
   if(it.t==="rect"){ const a=X(p[0]),b=Y(p[1]),c=X(p[2]),d=Y(p[3]); return distSeg(x,y,a,b,c,b)<tol||distSeg(x,y,c,b,c,d)<tol||distSeg(x,y,c,d,a,d)<tol||distSeg(x,y,a,d,a,b)<tol; }
   if(it.t==="ellipse"){ const cx=(X(p[0])+X(p[2]))/2, cy=(Y(p[1])+Y(p[3]))/2, rx=Math.abs(X(p[2])-X(p[0]))/2||1, ry=Math.abs(Y(p[3])-Y(p[1]))/2||1; let px0=cx+rx,py0=cy; for(let i=1;i<=48;i++){const a=i/48*Math.PI*2, px1=cx+rx*Math.cos(a), py1=cy+ry*Math.sin(a); if(distSeg(x,y,px0,py0,px1,py1)<tol) return true; px0=px1;py0=py1;} return false; }
   if(it.t==="text"){ const fs=(it.fs||0.03)*H_; skX.font=`700 ${fs}px ${FONT}`; const L=String(it.s||"").split("\n"); const w=Math.max(...L.map(l=>skX.measureText(l).width)); const x0=X(p[0]), y0=Y(p[1])-fs*0.6; return x>=x0-tol&&x<=x0+w+tol&&y>=y0-tol&&y<=y0+L.length*fs*1.2+tol; }
   if(it.t==="pt"){ const r=(it.fs||0.03)*H_*0.78; return Math.hypot(x-X(p[0]),y-Y(p[1]))<r+tol; }
+  if(it.t==="sym"){ const r=(it.fs||0.045)*H_*0.6; return Math.hypot(x-X(p[0]),y-Y(p[1]))<r+tol; }
+  if(it.t==="poly"){ const V=polyPts(it,X,Y,W_); for(let i=0;i<V.length;i++){ const a=V[i], b=V[(i+1)%V.length]; if(distSeg(x,y,a[0],a[1],b[0],b[1])<tol) return true; } return !!(it.fill||it.hatch)&&Math.hypot(x-X(p[0]),y-Y(p[1]))<(it.r||0)/1000*W_*0.8; }
   return false;
 }
 // --- pointers: pen (or a single finger when no pen is used) draws; two fingers zoom / move; with a pen, one finger moves
@@ -1085,7 +1160,7 @@ function skStartGest(){ const t=[...skTouch.values()]; const mx=t.reduce((s,q)=>
   const d=t.length>1?Math.hypot(t[0].x-t[1].x,t[0].y-t[1].y):0; skGest={n:t.length,mx,my,d,z:SK.z,ox:SK.ox,oy:SK.oy}; }
 function skMoveGest(){ const g=skGest, t=[...skTouch.values()]; if(t.length<g.n) return; const r=skCv.getBoundingClientRect();
   const mx=t.reduce((s,q)=>s+q.x,0)/t.length, my=t.reduce((s,q)=>s+q.y,0)/t.length;
-  let z=g.z; if(g.n>1&&g.d>0) z=Math.max(1,Math.min(5,g.z*Math.hypot(t[0].x-t[1].x,t[0].y-t[1].y)/g.d));
+  let z=g.z; if(g.n>1&&g.d>0) z=Math.max(1,Math.min(8,g.z*Math.hypot(t[0].x-t[1].x,t[0].y-t[1].y)/g.d));
   const bx=(g.mx-r.left+g.ox)/g.z, by=(g.my-r.top+g.oy)/g.z; // box px under the start midpoint
   SK.z=z; SK.ox=bx*z-(mx-r.left); SK.oy=by*z-(my-r.top); skClamp(); skDraw(); }
 function grabHandle(p){ // a handle of the single selected item, or (move tool) the end of any line
@@ -1100,6 +1175,9 @@ function skBegin(p){
   const T=SK.tool, base={c:SK.color,w:SK.w};
   if(T!=="eraser"&&T!=="img"){ const g=grabHandle(p); if(g){ SK.selSet=[g.it]; skDrag={mode:"h",it:g.it,h:g.h,p0:p,orig:g.it.p.slice(),ofs:g.it.fs,pre:skSnap()}; skDraw(); return; } }
   if(T==="pen"){ SK.live=Object.assign({t:"pen",p:[p[0],p[1]]},base); }
+  else if((T==="rect"||T==="ellipse"||T==="poly")&&placeByNumber(T,[0,0])){ const sp=snapPt(p); const it=placeByNumber(T,sp.p); skPush(); SK.items.push(it); SK.selSet=[it]; skDone(); skLastPlace=true; skPaintTools(); }
+  else if(T==="poly"){ const sp=snapPt(p); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; SK.live=Object.assign({t:"poly",p:[sp.p[0],sp.p[1]],r:0,n:polyN(),rot:-90},base); }
+  else if(T==="sym"){ /* placed on release */ }
   else if(["line","arrow","dim","rect","ellipse"].includes(T)){ const sp=snapPt(p); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; p=sp.p; SK.live=Object.assign({t:T,p:[p[0],p[1],p[0],p[1]]},base); if(T==="dim"){ SK.live.o=-45; SK.live._a=sp.hit==="obj"?{own:sp.own,kind:sp.kind}:null; } }
   else if(T==="move"){ const tol=12/SK.z; const hit=[...SK.items].reverse().find(it=>hitItem(it,p[0],p[1],tol));
     if(hit){ const ss=selLive(), was=ss.includes(hit); const set=was?ss:groupOf(hit);
@@ -1122,6 +1200,8 @@ function skMove(p){
     if(!done&&SK.gsnap&&anc.length){ const a=anc[0], g=toGrid([a[0]+dx,a[1]+dy]); ddx=g[0]-a[0]; ddy=g[1]-a[1]; SK.snapAt=g; SK.snapK="grid"; }
     d.items.forEach((it,i)=>{ it.p=d.origs[i].map((v,j)=>Math.round(v+(j%2?ddy:ddx))); }); return; }
   if(d&&d.mode==="img"){ SK.imgT.cx=d.cx+(p[0]-d.p0[0]); SK.imgT.cy=d.cy+(p[1]-d.p0[1]); return; }
+  if(L&&L.t==="poly"){ let q=p; const sp=snapPt(p,L); if(sp.hit==="obj"){ q=sp.p; SK.snapAt=sp.p; SK.snapK=sp.hit; } else SK.snapAt=null;
+    let r=Math.hypot((q[0]-L.p[0])/1000*SK.cw,(q[1]-L.p[1])/1000*SK.ch); if(SK.gsnap&&sp.hit!=="obj"){ const g=GD()/2; r=Math.round(r/g)*g; } L.r=r/SK.cw*1000; return; }
   if(L&&L.t==="pen"){ const n=L.p.length; if(Math.abs(p[0]-L.p[n-2])+Math.abs(p[1]-L.p[n-1])>=2) L.p.push(p[0],p[1]); }
   else if(L&&L.t==="ellipse"){ // true circle while drawing; stretch later with the handles
     const dx=(p[0]-L.p[0])/1000*SK.cw, dy=(p[1]-L.p[1])/1000*SK.ch, r=Math.max(Math.abs(dx),Math.abs(dy));
@@ -1144,7 +1224,9 @@ function skEnd(p){
   if(d&&d.mode==="img"){ skDone(); skPaintTools(); skDraw(); return; }
   if(L&&L.t==="dim"){ const a=L._a, b=L._b; delete L._a; delete L._b;
     if(a&&b&&a.own===b.own&&a.own.t==="ellipse"){ L.circ=true; if(a.kind==="c") L.cen="a"; else if(b.kind==="c") L.cen="b"; } }
-  if(L){ const big=L.t==="pen"?L.p.length>=2:(Math.abs(L.p[2]-L.p[0])+Math.abs(L.p[3]-L.p[1])>6);
+  if(skLastPlace){ skLastPlace=false; skPaintTools(); skDraw(); return; }
+  if(T==="sym"&&!L){ const sp=snapPt(p); skPush(); const it={t:"sym",p:[sp.p[0],sp.p[1]],s:SK.sym,c:SK.color,w:SK.w,fs:(FS_OF[SK.w]||0.03)*1.5}; SK.items.push(it); SK.selSet=[it]; skDone(); skPaintTools(); skDraw(); return; }
+  if(L){ const big=L.t==="pen"?L.p.length>=2:L.t==="poly"?(L.r>3):(Math.abs(L.p[2]-L.p[0])+Math.abs(L.p[3]-L.p[1])>6);
     if(big){ if(L.t==="arrow") L.p=[L.p[2],L.p[3],L.p[0],L.p[1]]; // the tapped start point is the arrow tip
       skPush(); SK.items.push(L); SK.selSet=[L]; skDone(); if(L.t==="dim"){ L.fs=FS_OF[SK.w]||0.03; skAskDim(L,true); } }
     else if(L.t==="dim"){ const hit=[...SK.items].reverse().find(it=>it.t==="dim"&&hitItem(it,p[0],p[1],10/SK.z)); if(hit){ SK.selSet=[hit]; skAskDim(hit,false); } else SK.selSet=[]; }
@@ -1182,11 +1264,19 @@ document.getElementById("skTxtDel").onclick=()=>{ skTM.hidden=true;
 // buttons
 document.getElementById("skGrid").onclick=()=>{SK.grid=!SK.grid; skPaintTools(); skDraw();};
 document.getElementById("skGroup").onclick=()=>{ const ss=selLive(); if(ss.length>1&&ss.every(it=>it.g&&it.g===ss[0].g)){ skPush(); ss.forEach(it=>{delete it.g;}); skPaintTools(); skDraw(); toast("グループを解除しました"); return; } if(ss.length<2) return; skPush(); const id="g"+Date.now().toString(36); ss.forEach(it=>it.g=id); SK.selSet=ss.slice(); skPaintTools(); skDraw(); toast("グループにしました"); };
+(function(){ const pal=document.getElementById("skSymPal");
+  ["⊕","◎","○","●","△","▲","▽","▼","□","■","◇","×","※","℄","φ","R","±","°","→","←","↑","↓","Ｎ","BM"].forEach(t=>{ const b=document.createElement("button"); b.type="button"; b.textContent=t; b.onclick=()=>{SK.sym=t; skPaintTools();}; pal.appendChild(b); });
+  const row=document.getElementById("skFillRow"); [["","なし","#ffffff"],["gray","灰","#bdbdbd"],["yellow","黄","#fde68a"],["blue","青","#bfdbfe"],["red","赤","#fecaca"],["green","緑","#bbf7d0"]].forEach(([k,n,c])=>{ const b=document.createElement("button"); b.type="button"; b.className="fillsw"; b.dataset.fill=k; b.title=n; b.setAttribute("aria-label","塗り "+n); b.style.background=c; if(!k){ b.textContent="／"; b.style.color="#c62828"; } b.onclick=()=>setFillHatch({fill:k||null}); row.appendChild(b); });
+  document.querySelectorAll("[data-hatch]").forEach(b=>b.onclick=()=>setFillHatch({hatch:b.dataset.hatch||null}));
+  ["skNW","skNH","skND","skNN","skNS"].forEach(id=>document.getElementById(id).addEventListener("keydown",e=>{ if(e.key==="Enter") e.target.blur(); }));
+})();
+function setFillHatch(o){ const cl=selLive().filter(it=>it.t==="rect"||it.t==="ellipse"||it.t==="poly"); if(!cl.length) return; skPush();
+  cl.forEach(it=>{ if("fill" in o){ if(o.fill) it.fill=o.fill; else delete it.fill; } if("hatch" in o){ if(o.hatch) it.hatch=o.hatch; else delete it.hatch; } }); skPaintTools(); skDraw(); }
 document.getElementById("skOSnap").onclick=()=>{SK.snap=!SK.snap; skPaintTools();};
 document.getElementById("skGSnap").onclick=()=>{SK.gsnap=!SK.gsnap; skPaintTools();};
-function skZoomBy(f){ const cx=SK.cw/2, cy=SK.ch/2, bx=(cx+SK.ox)/SK.z, by=(cy+SK.oy)/SK.z; SK.z=Math.max(1,Math.min(5,SK.z*f)); SK.ox=bx*SK.z-cx; SK.oy=by*SK.z-cy; skClamp(); skDraw(); }
+function skZoomBy(f){ const cx=SK.vw/2, cy=SK.vh/2, bx=(cx+SK.ox)/SK.z, by=(cy+SK.oy)/SK.z; SK.z=Math.max(1,Math.min(8,SK.z*f)); SK.ox=bx*SK.z-cx; SK.oy=by*SK.z-cy; skClamp(); skDraw(); }
 document.getElementById("skZIn").onclick=()=>skZoomBy(1.5); document.getElementById("skZOut").onclick=()=>skZoomBy(1/1.5);
-document.getElementById("skZFit").onclick=()=>{SK.z=1;SK.ox=0;SK.oy=0;skDraw();};
+document.getElementById("skZFit").onclick=()=>{SK.z=1;skClamp();skDraw();};
 document.getElementById("skUndo").onclick=()=>{ const h=SK.hist.pop(); if(!h) return; SK.fut.push(skSnap()); skRestore(h); skHistBtns(); skPaintTools(); skDraw(); };
 document.getElementById("skRedo").onclick=()=>{ const h=SK.fut.pop(); if(!h) return; SK.hist.push(skSnap()); skRestore(h); skHistBtns(); skPaintTools(); skDraw(); };
 document.getElementById("skClear").onclick=()=>{ if(!SK.items.length) return; skPush(); SK.items=[]; skPaintTools(); skDraw(); toast("描いたものを消しました（「1つ戻す」で戻せます）"); };
