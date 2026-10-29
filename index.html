@@ -134,6 +134,8 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 .kp.alpha{grid-template-columns:repeat(7,1fr)}
 .kp.alpha button{font-size:22px;min-height:54px}
 .kp button.ok{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.finger{min-width:72px;font-weight:700}
+.btn.finger[aria-pressed="true"]{background:#c2410c;border-color:#c2410c;color:#fff}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);
   padding:10px 16px;border-radius:10px;z-index:30;font-size:14px;max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:no-preference){.toast{transition:opacity .2s}}
@@ -141,7 +143,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
 
 <div class="bar">
   <div class="bar-row">
-    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v19</span></span>
+    <span class="brand">出来形成果表 <span style="font-weight:400;font-size:12px;color:var(--muted)">v23</span></span>
     <select id="formSel" class="formsel" aria-label="帳票を選ぶ"></select>
     <div class="grp">
       <button class="btn sm" id="bNew">新規</button>
@@ -194,6 +196,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
       <div class="row">
         <button class="btn" id="pUndo">1画戻す</button>
         <button class="btn" id="pClear">全部消す</button>
+        <button class="btn finger" id="pFinger" aria-pressed="true" title="押すと指でも書けます">ペン</button>
       </div>
       <div class="row end">
         <button class="btn" id="pCancel">キャンセル</button>
@@ -208,7 +211,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
   <div class="sheetbox" role="dialog" aria-modal="true" aria-labelledby="skTitle">
     <div class="skhead">
       <div><h2 id="skTitle">略図</h2><div class="sub" id="skHint">Apple Pencilで描きます。指は1本で移動、2本で拡大・縮小。方眼は印刷されません。</div></div>
-      <div class="row"><button class="btn" id="skCancel">キャンセル</button><button class="btn primary" id="skOk">OK</button></div>
+      <div class="row"><button class="btn finger" id="skFinger" aria-pressed="true" title="押すと指でも書けます">ペン</button><button class="btn" id="skCancel">キャンセル</button><button class="btn primary" id="skOk">OK</button></div>
     </div>
     <div class="skmain">
       <div id="skArea"><canvas id="skPad"></canvas></div>
@@ -266,7 +269,7 @@ legend{font-weight:700;font-size:14px;padding:0 4px}
     <div class="kp" id="skKp" hidden></div>
     <div id="skDimOpts" class="skgrp" hidden>
       <span class="sklab">寸法線の位置</span>
-      <div class="skrow"><button class="btn" id="skDimFlip" type="button">反対側へ</button>
+      <div class="skrow"><button class="btn" id="skDimFlip" type="button">反対側へ</button><button class="btn" id="skDimMid" type="button">数値を中央へ</button>
         <label class="skrow sknote" id="skDimOffRow" style="flex:1">図形からの距離 <input type="range" id="skDimOff" min="0.5" max="12" step="0.5" value="4" style="flex:1"> <span id="skDimOffV">4gd</span></label></div>
       <span class="sknote">寸法の数値（例：3,000）を入れてください。空のままでもかまいません。</span>
     </div>
@@ -854,7 +857,11 @@ function setSign(x){sign=x;updSign();drawPad(); if(pCell&&isErr(pCell)){const ne
 document.getElementById("sgAuto").onclick=()=>setSign("auto");
 document.getElementById("sgPlus").onclick=()=>setSign("+");
 document.getElementById("sgMinus").onclick=()=>setSign("-");
-function accept(e){ if(e.pointerType==="pen") penSeen=true; return e.pointerType!=="touch"; } // Apple Pencil (or a PC mouse) writes; fingers never do
+// Apple Pencil (or a PC mouse) writes. Fingers write only while "指で書く" is switched on (for a day without the pen).
+let fingerDraw=!!lsGet("finger");
+function accept(e){ if(e.pointerType==="pen") penSeen=true; return e.pointerType!=="touch"||fingerDraw; }
+function paintFinger(){ document.querySelectorAll(".btn.finger").forEach(b=>{ b.setAttribute("aria-pressed",String(!fingerDraw)); b.title=fingerDraw?"いまは指でも書けます。押すとペンだけに戻ります":"いまはペンだけで書けます。押すと指でも書けます"; }); } // coloured = pen only
+function toggleFinger(){ fingerDraw=!fingerDraw; lsSet("finger",fingerDraw); paintFinger(); toast(fingerDraw?"ペンオフ：指でも書けます":"ペンオン：Apple Pencilだけで書きます"); }
 let activeId=null;
 function pt(e){const r=pad.getBoundingClientRect(); return [Math.round(Math.min(1000,Math.max(0,(e.clientX-r.left)/r.width*1000))),Math.round(Math.min(1000,Math.max(0,(e.clientY-r.top)/r.height*1000)))];}
 pad.addEventListener("pointerdown",e=>{ if(!accept(e)||activeId!==null) return; e.preventDefault(); activeId=e.pointerId; try{pad.setPointerCapture(e.pointerId)}catch(_){} live=pt(e); drawPad(); });
@@ -863,6 +870,7 @@ pad.addEventListener("pointermove",e=>{ if(e.pointerId!==activeId) return; e.pre
 function endStroke(e){ if(e.pointerId!==activeId) return; activeId=null; if(live&&live.length>=2) strokes.push(live); live=null; recMan=false; drawPad(); updSign(); runRec(); }
 pad.addEventListener("pointerup",endStroke); pad.addEventListener("pointercancel",endStroke);
 pad.addEventListener("touchstart",e=>e.preventDefault(),{passive:false});
+document.getElementById("pFinger").onclick=toggleFinger; document.getElementById("skFinger").onclick=toggleFinger; paintFinger();
 document.getElementById("pUndo").onclick=()=>{strokes.pop();recMan=false;drawPad();updSign();runRec();};
 document.getElementById("pClear").onclick=()=>{strokes=[];recMan=false;drawPad();updSign();runRec();};
 document.getElementById("pCancel").onclick=()=>{pM.hidden=true;closeHl();};
@@ -924,6 +932,13 @@ function dimGeom(it,X,Y,w){
   return {ax,ay,bx,by,ux,uy,nx:nx*sg,ny:ny*sg,oa,gap,ext,
     d1:[ax+nx*o,ay+ny*o], d2:[bx+nx*o,by+ny*o]};
 }
+// where the value sits: along the line at it.tx (0..1, default middle), on the outer side, plus it.ty (1/1000 of width) further out;
+// up-down dimensions keep the value level (reads left to right) beside the line
+function dimLabelPos(it,g,fs,tw,w){
+  let a=Math.atan2(g.uy,g.ux); if(a>Math.PI/2-0.01) a-=Math.PI; if(a<-Math.PI/2-0.01) a+=Math.PI;
+  const t=it.tx!=null?it.tx:0.5, bx=g.d1[0]+(g.d2[0]-g.d1[0])*t, by=g.d1[1]+(g.d2[1]-g.d1[1])*t, ex=(it.ty||0)/1000*w;
+  let off=fs*0.62; if(Math.abs(g.uy)>0.85){ a=0; off=tw/2+fs*0.35; }
+  return {mx:bx+g.nx*(off+ex), my:by+g.ny*(off+ex), a}; }
 function drawDim(ctx,it,X,Y,w,h,lw){
   const g=dimGeom(it,X,Y,w), thin=Math.max(lw*0.6,0.5);
   ctx.lineWidth=thin; ctx.beginPath(); if(!it.circ)
@@ -936,11 +951,7 @@ function drawDim(ctx,it,X,Y,w,h,lw){
   const head=(ax,ay,bx,by)=>{const a=Math.atan2(ay-by,ax-bx); ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax-hs*Math.cos(a-0.35),ay-hs*Math.sin(a-0.35)); ctx.lineTo(ax-hs*Math.cos(a+0.35),ay-hs*Math.sin(a+0.35)); ctx.closePath(); ctx.fill();};
   if(narrow){ head(g.d2[0],g.d2[1],g.d2[0]+g.ux,g.d2[1]+g.uy); head(g.d1[0],g.d1[1],g.d1[0]-g.ux,g.d1[1]-g.uy); } // narrow gap: arrows outside, pointing in
   else { if(it.cen!=="b") head(...g.d2,...g.d1); if(it.cen!=="a") head(...g.d1,...g.d2); } // circle radius: no arrow at the centre
-  if(it.s){ const fs=(it.fs||0.03)*h; let a=Math.atan2(g.uy,g.ux); if(a>Math.PI/2-0.01) a-=Math.PI; if(a<-Math.PI/2-0.01) a+=Math.PI;
-    let mx=(g.d1[0]+g.d2[0])/2+g.nx*fs*0.62, my=(g.d1[1]+g.d2[1])/2+g.ny*fs*0.62;
-    if(Math.abs(g.uy)>0.85){ // up-down dimension: keep the value level (reads left to right), set beside the line
-      ctx.font=`700 ${fs}px ${FONT}`; const tw=ctx.measureText(String(it.s)).width; a=0;
-      mx=(g.d1[0]+g.d2[0])/2+g.nx*(tw/2+fs*0.35); my=(g.d1[1]+g.d2[1])/2+g.ny*(fs*0.62); }
+  if(it.s){ const fs=(it.fs||0.03)*h; ctx.font=`700 ${fs}px ${FONT}`; const tw=ctx.measureText(String(it.s)).width; const {mx,my,a}=dimLabelPos(it,g,fs,tw,w);
     ctx.save(); ctx.translate(mx,my); ctx.rotate(a); ctx.font=`700 ${fs}px ${FONT}`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(String(it.s),0,0); ctx.restore(); }
 }
 // closed shapes: rectangle, circle/ellipse, regular polygon (centre p, radius r as 1/1000 of box width, n vertices)
@@ -976,7 +987,7 @@ function drawSketch(ctx,d,x,y,w,h,opt){
 const SK={sym:"⊕",cont:false,selSet:[],fut:[],snapAt:null,snapK:null,snap:true,gsnap:true,sel:null,tool:"move",color:"#111111",w:0.004,grid:true,z:1,ox:0,oy:0,items:[],img:null,imgT:null,hist:[],cw:0,ch:0,dpr:1,cell:null,live:null};
 const skM=document.getElementById("skModal"), skCv=document.getElementById("skPad"), skX=skCv.getContext("2d"), skArea=document.getElementById("skArea");
 const SKCOL=[["#111111","黒"],["#C62828","赤"],["#1d4ed8","青"],["#2e7d32","緑"]];
-const TOOLNOTE={pen:"自由に描きます。",line:"なぞった始点と終点を結びます。端点・中点・丸の8分点（四半点と45°の点）に吸い付き、水平・垂直・45°に近いとそろえます。",arrow:"最初にタッチした所が矢印の先になり、引っぱった方へ伸びます。",dim:"測りたい2点をなぞると、寸法補助線つきの寸法線を引き、数値を入れる画面が出ます。引いた寸法線をタップすると直せます。",move:"選択モード：図形をタップで選択（もう一度で外す）、引っぱると移動、何もない所をなぞると囲んで選択、タップで選択をやめます。道具は1回押すと1回だけ、2回続けて押すと連続で使えます。",poly:"中心から外へなぞると正多角形を描きます。頂点の数は下の欄で決めます。",sym:"記号を選んで、置きたい所をタップします。",rect:"対角をなぞると四角を描きます。描いている間は大きさを「〇gd×〇gd」で表示します。",ellipse:"なぞると正円を描きます（直径を「φ〇gd」で表示）。楕円にするときは、描いたあとに四半点の□で伸ばします。",text:"文字を置く位置をタップします。置いた文字をタップすると直せます。",pt:"タップした位置に測点番号を置きます。番号は自動で増えます。",eraser:"消したい線や文字をなぞると、まとめて消えます。",img:"画像をドラッグして位置を合わせます。大きさは下のつまみで変えます。"};
+const TOOLNOTE={pen:"自由に描きます。",line:"なぞった始点と終点を結びます。端点・中点・丸の8分点（四半点と45°の点）に吸い付き、水平・垂直・45°に近いとそろえます。",arrow:"最初にタッチした所が矢印の先になり、引っぱった方へ伸びます。",dim:"測りたい2点をなぞると寸法線を引き、数値を入れる画面が出ます。選択モードでは、数値をタップ＝直す、数値を引っぱる＝数値だけ移動、線を引っぱる＝寸法ごと移動、◇＝図形からの距離、□＝測る点です。",move:"選択モード：図形をタップで選択（もう一度で外す）、引っぱると移動、何もない所をなぞると囲んで選択、タップで選択をやめます。道具は1回押すと1回だけ、2回続けて押すと連続で使えます。",poly:"中心から外へなぞると正多角形を描きます。頂点の数は下の欄で決めます。",sym:"記号を選んで、置きたい所をタップします。",rect:"対角をなぞると四角を描きます。描いている間は大きさを「〇gd×〇gd」で表示します。",ellipse:"なぞると正円を描きます（直径を「φ〇gd」で表示）。楕円にするときは、描いたあとに四半点の□で伸ばします。",text:"文字を置く位置をタップします。置いた文字をタップすると直せます。",pt:"タップした位置に測点番号を置きます。番号は自動で増えます。",eraser:"消したい線や文字をなぞると、まとめて消えます。",img:"画像をドラッグして位置を合わせます。大きさは下のつまみで変えます。"};
 function nextPt(){ return SK.items.reduce((m,it)=>it.t==="pt"?Math.max(m,it.n||0):m,0)+1; }
 function skPaintTools(){
   document.querySelectorAll("#skTools [data-tool], #skImgMove").forEach(b=>{ if(!b.dataset.label) b.dataset.label=b.textContent; const on=b.dataset.tool===SK.tool;
@@ -1095,7 +1106,7 @@ function textBox(it){ const H_=SK.ch, fs=(it.fs||0.03)*H_; skX.save(); skX.font=
   return {w:w/SK.cw*1000, h:(L.length*fs*1.2)/SK.ch*1000, top:(it.p[1]-fs*0.6/SK.ch*1000)}; }
 function bbox(p){ let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9; for(let i=0;i<p.length;i+=2){x1=Math.min(x1,p[i]);x2=Math.max(x2,p[i]);y1=Math.min(y1,p[i+1]);y2=Math.max(y2,p[i+1]);} return [x1,y1,x2,y2]; }
 function handlesOf(it){ const p=it.p;
-  if(it.t==="dim"&&!it.circ){ const g=dimGeom(it,v=>v/1000*SK.cw,v=>v/1000*SK.ch,SK.cw); return [{x:p[0],y:p[1],k:"e0"},{x:p[2],y:p[3],k:"e1"},{x:(g.d1[0]+g.d2[0])/2/SK.cw*1000,y:(g.d1[1]+g.d2[1])/2/SK.ch*1000,k:"o"}]; }
+  if(it.t==="dim"&&!it.circ){ const g=dimGeom(it,v=>v/1000*SK.cw,v=>v/1000*SK.ch,SK.cw); return [{x:p[0],y:p[1],k:"e0"},{x:p[2],y:p[3],k:"e1"},{x:g.d2[0]/SK.cw*1000,y:g.d2[1]/SK.ch*1000,k:"o"}]; }
   if(it.t==="line"||it.t==="arrow"||it.t==="dim") return [{x:p[0],y:p[1],k:"e0"},{x:p[2],y:p[3],k:"e1"}];
   if(it.t==="rect") return [{x:p[0],y:p[1],k:"c0"},{x:p[2],y:p[1],k:"c1"},{x:p[2],y:p[3],k:"c2"},{x:p[0],y:p[3],k:"c3"}];
   if(it.t==="ellipse"){ const a=Math.min(p[0],p[2]),b=Math.min(p[1],p[3]),c=Math.max(p[0],p[2]),d=Math.max(p[1],p[3]),mx=(a+c)/2,my=(b+d)/2;
@@ -1110,11 +1121,12 @@ function handleOut(it,h){ // outward unit direction (box px) for a handle
   const p=it.p, cw=SK.cw, ch=SK.ch, n=(x,y)=>{const l=Math.hypot(x,y)||1; return [x/l,y/l];};
   if(h.k==="e0") return n((p[0]-p[2])/1000*cw,(p[1]-p[3])/1000*ch);
   if(h.k==="e1") return n((p[2]-p[0])/1000*cw,(p[3]-p[1])/1000*ch);
+  if(h.k==="o"){ return n((p[2]-p[0])/1000*cw,(p[3]-p[1])/1000*ch); } // beyond the arrow, along the dimension line
   if(h.k==="r"){ const cx=p[0]/1000*cw, cy=p[1]/1000*ch; return n(h.x/1000*cw-cx||0.001,h.y/1000*ch-cy); }
   if(h.k==="q0") return [0,-1]; if(h.k==="q1") return [1,0]; if(h.k==="q2") return [0,1]; if(h.k==="q3") return [-1,0];
   if(h.k[0]==="c"||h.k[0]==="b"||h.k[0]==="z"){ const b=bbox(p), cx=(b[0]+b[2])/2, cy=(b[1]+b[3])/2; return n((h.x-cx)/1000*cw||1,(h.y-cy)/1000*ch||1); }
   return [0,0]; }
-function handlePos(it,h){ const o=handleOut(it,h), off=22/SK.z; return [h.x/1000*SK.cw+o[0]*off, h.y/1000*SK.ch+o[1]*off]; } // box px
+function handlePos(it,h){ const o=handleOut(it,h), off=(h.k==="o"?34:22)/SK.z; return [h.x/1000*SK.cw+o[0]*off, h.y/1000*SK.ch+o[1]*off]; } // box px
 function skResize(p){
   const d=skDrag, it=d.it, o=d.orig, k=d.h.k; SK.snapAt=null; SK.snapK=null;
   const pp=[d.h.x+(p[0]-d.p0[0]), d.h.y+(p[1]-d.p0[1])]; // where the controlled point now is
@@ -1153,9 +1165,9 @@ function drawHandles(){
   const ss=selLive(); if(!ss.length) return;
   const one=single();
   skX.save(); skX.lineWidth=1.5/SK.z; skX.strokeStyle="#1f4e79"; skX.fillStyle="#fff";
-  if(one){ const r=6/SK.z; for(const h of handlesOf(one)){ const [x,y]=handlePos(one,h), ax=h.x/1000*SK.cw, ay=h.y/1000*SK.ch;
+  if(one){ const r=8/SK.z; for(const h of handlesOf(one)){ const [x,y]=handlePos(one,h), ax=h.x/1000*SK.cw, ay=h.y/1000*SK.ch;
       if(h.k!=="s"){ skX.save(); skX.lineWidth=1/SK.z; skX.setLineDash([2/SK.z,2/SK.z]); skX.beginPath(); skX.moveTo(ax,ay); skX.lineTo(x,y); skX.stroke(); skX.restore(); }
-      skX.beginPath(); if(h.k==="s"){skX.arc(x,y,r,0,Math.PI*2);} else skX.rect(x-r,y-r,r*2,r*2); skX.fill(); skX.stroke(); } }
+      skX.beginPath(); if(h.k==="s"){skX.arc(x,y,r,0,Math.PI*2);} else if(h.k==="o"){ skX.moveTo(x,y-r*1.3); skX.lineTo(x+r*1.3,y); skX.lineTo(x,y+r*1.3); skX.lineTo(x-r*1.3,y); skX.closePath(); } else skX.rect(x-r,y-r,r*2,r*2); skX.fill(); skX.stroke(); } }
   else { let b=[1e9,1e9,-1e9,-1e9]; for(const it of ss){ const q=itemBox(it); b=[Math.min(b[0],q[0]),Math.min(b[1],q[1]),Math.max(b[2],q[2]),Math.max(b[3],q[3])]; }
     const pd=6/SK.z; skX.setLineDash([6/SK.z,4/SK.z]); skX.strokeRect(b[0]/1000*SK.cw-pd,b[1]/1000*SK.ch-pd,(b[2]-b[0])/1000*SK.cw+pd*2,(b[3]-b[1])/1000*SK.ch+pd*2); }
   skX.restore(); }
@@ -1177,10 +1189,7 @@ function distSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy; let t
 function dimTextBox(it){ // centre, angle and half sizes (box px) of a dimension's value, laid out as drawDim does
   const X=v=>v/1000*SK.cw, Y=v=>v/1000*SK.ch, g=dimGeom(it,X,Y,SK.cw), fs=(it.fs||0.03)*SK.ch;
   skX.save(); skX.font=`700 ${fs}px ${FONT}`; const tw=skX.measureText(String(it.s||"")).width; skX.restore();
-  let a=Math.atan2(g.uy,g.ux); if(a>Math.PI/2-0.01) a-=Math.PI; if(a<-Math.PI/2-0.01) a+=Math.PI;
-  let mx=(g.d1[0]+g.d2[0])/2+g.nx*fs*0.62, my=(g.d1[1]+g.d2[1])/2+g.ny*fs*0.62;
-  if(Math.abs(g.uy)>0.85){ a=0; mx=(g.d1[0]+g.d2[0])/2+g.nx*(tw/2+fs*0.35); my=(g.d1[1]+g.d2[1])/2+g.ny*(fs*0.62); }
-  return {mx,my,a,hw:tw/2,hh:fs*0.6}; }
+  const {mx,my,a}=dimLabelPos(it,g,fs,tw,SK.cw); return {mx,my,a,hw:tw/2,hh:fs*0.6}; }
 function onDimText(it,bx,by,tol){ if(!it.s) return false; const t=dimTextBox(it), x=bx/1000*SK.cw-t.mx, y=by/1000*SK.ch-t.my, c=Math.cos(-t.a), s_=Math.sin(-t.a);
   const lx=x*c-y*s_, ly=x*s_+y*c; return Math.abs(lx)<=t.hw+tol&&Math.abs(ly)<=t.hh+tol; }
 function hitItem(it,bx,by,tol){ // in box px space
@@ -1203,7 +1212,7 @@ function hitItem(it,bx,by,tol){ // in box px space
 }
 // --- pointers: pen (or a single finger when no pen is used) draws; two fingers zoom / move; with a pen, one finger moves
 const skTouch=new Map(); let skDrawId=null, skGest=null, skErased=false, skDrag=null;
-function skNavOnly(e){ return e.pointerType==="touch"; } // fingers: move / zoom only
+function skNavOnly(e){ return e.pointerType==="touch"&&!fingerDraw; } // fingers move / zoom unless "指で書く" is on
 skCv.addEventListener("pointerdown",e=>{
   e.preventDefault(); if(e.pointerType==="pen") penSeen=true;
   try{skCv.setPointerCapture(e.pointerId)}catch(_){}
@@ -1230,7 +1239,7 @@ function skMoveGest(){ const g=skGest, t=[...skTouch.values()]; if(t.length<g.n)
   const bx=(g.mx-r.left+g.ox)/g.z, by=(g.my-r.top+g.oy)/g.z; // box px under the start midpoint
   SK.z=z; SK.ox=bx*z-(mx-r.left); SK.oy=by*z-(my-r.top); skClamp(); skDraw(); }
 function grabHandle(p){ // a handle of the single selected item, or (move tool) the end of any line
-  const hr=13/SK.z, px=p[0]/1000*SK.cw, py=p[1]/1000*SK.ch;
+  const hr=16/SK.z, px=p[0]/1000*SK.cw, py=p[1]/1000*SK.ch;
   const one=single(); const onVal=one&&one.t==="dim"&&onDimText(one,p[0],p[1],6/SK.z); // the value wins over the distance handle
   if(one){ let best=null, bd=1e9; for(const q of handlesOf(one)){ if(onVal&&q.k==="o") continue; const [x,y]=handlePos(one,q), dd=Math.hypot(x-px,y-py); if(dd<bd){bd=dd;best=q;} }
     if(best&&bd<=hr){ // while drawing, a point you can snap to wins when it is closer than the handle
@@ -1246,6 +1255,8 @@ function skBegin(p){
   else if(T==="poly"){ const sp=snapPt(p); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; SK.live=Object.assign({t:"poly",p:[sp.p[0],sp.p[1]],r:0,n:polyN(),rot:-90},base); }
   else if(T==="sym"){ /* placed on release */ }
   else if(["line","arrow","dim","rect","ellipse"].includes(T)){ const sp=snapPt(p); SK.snapAt=sp.hit?sp.p:null; SK.snapK=sp.hit; p=sp.p; SK.live=Object.assign({t:T,p:[p[0],p[1],p[0],p[1]]},base); if(T==="dim"){ SK.live.o=-4*(1000/48); SK.live._a=sp.hit==="obj"?{own:sp.own,kind:sp.kind}:null; } }
+  else if(T==="move"&&(()=>{ const dv=[...SK.items].reverse().find(it=>it.t==="dim"&&it.s&&onDimText(it,p[0],p[1],8/SK.z)); if(!dv) return false;
+      skDrag={mode:"dt",it:dv,p0:p,tx0:dv.tx!=null?dv.tx:0.5,ty0:dv.ty||0,pre:skSnap()}; SK.selSet=[dv]; return true; })()){}
   else if(T==="move"){ const tol=12/SK.z; const hit=[...SK.items].reverse().find(it=>hitItem(it,p[0],p[1],tol));
     if(hit){ const ss=selLive(), was=ss.includes(hit); const set=was?ss:groupOf(hit);
       skDrag={mode:"m",items:set.slice(),origs:set.map(it=>it.p.slice()),p0:p,pre:skSnap(),hit,was,prev:ss.slice()}; SK.selSet=was?ss:ss.concat(groupOf(hit).filter(x=>!ss.includes(x))); }
@@ -1260,6 +1271,9 @@ function skMove(p){
   const T=SK.tool, L=SK.live, d=skDrag;
   if(d&&d.mode==="h"){ firstChange(); skResize(p); return; }
   if(d&&d.mode==="r"){ d.p1=p; return; }
+  if(d&&d.mode==="dt"){ const it=d.it, X=v=>v/1000*SK.cw, Y=v=>v/1000*SK.ch, g=dimGeom(it,X,Y,SK.cw);
+    const dx=(p[0]-d.p0[0])/1000*SK.cw, dy=(p[1]-d.p0[1])/1000*SK.ch; if(!d.moved&&Math.hypot(dx,dy)<4/SK.z) return; firstChange();
+    const L=Math.hypot(g.d2[0]-g.d1[0],g.d2[1]-g.d1[1])||1; it.tx=Math.max(-1,Math.min(2,d.tx0+(dx*g.ux+dy*g.uy)/L)); it.ty=Math.max(-200,Math.min(400,d.ty0+(dx*g.nx+dy*g.ny)/SK.cw*1000)); return; }
   if(d&&d.mode==="m"){ firstChange(); const dx=p[0]-d.p0[0], dy=p[1]-d.p0[1]; let ddx=dx, ddy=dy, done=false; SK.snapAt=null; SK.snapK=null;
     const anc=[]; d.items.forEach((it,i)=>anchorsOf(Object.assign({},it,{p:d.origs[i]})).forEach(a=>anc.push(a)));
     if(SK.snap){ let best=null; for(const a of anc){ const n=nearestTarget([a[0]+dx,a[1]+dy],d.items); if(n.t&&(!best||n.d<best.d)) best={d:n.d,t:n.t,a}; }
@@ -1281,11 +1295,12 @@ function skMove(p){
 function skEnd(p){
   const T=SK.tool, L=SK.live, d=skDrag; SK.live=null; SK.snapAt=null; skDrag=null;
   if(d&&d.mode==="h"){ skPaintTools(); skDraw(); return; }
+  if(d&&d.mode==="dt"){ if(!d.moved) skEditItem(d.it); skPaintTools(); skDraw(); return; } // value: tap = edit, drag = move
   if(d&&d.mode==="r"){ const x1=Math.min(d.p0[0],d.p1[0]), y1=Math.min(d.p0[1],d.p1[1]), x2=Math.max(d.p0[0],d.p1[0]), y2=Math.max(d.p0[1],d.p1[1]);
     if(x2-x1>4||y2-y1>4){ let set=SK.items.filter(it=>{const b=itemBox(it); return b[0]<=x2&&b[2]>=x1&&b[1]<=y2&&b[3]>=y1;}); const add=[]; set.forEach(it=>groupOf(it).forEach(g=>{ if(!set.includes(g)&&!add.includes(g)) add.push(g); })); SK.selSet=set.concat(add); }
     skPaintTools(); skDraw(); return; }
   if(d&&d.mode==="m"){
-    if(!d.moved&&(d.hit.t==="text"||(d.hit.t==="dim"&&(onDimText(d.hit,p[0],p[1],10/SK.z)||(d.was&&d.prev.length===1))))){ SK.selSet=[d.hit]; skEditItem(d.hit); skPaintTools(); skDraw(); return; } // tap again: edit
+    if(!d.moved&&(d.hit.t==="text"||(d.hit.t==="dim"&&d.was&&d.prev.length===1))){ SK.selSet=[d.hit]; skEditItem(d.hit); skPaintTools(); skDraw(); return; } // tap again: edit
     if(!d.moved){ const g=groupOf(d.hit); SK.selSet=d.was?d.prev.filter(x=>!g.includes(x)):d.prev.concat(g.filter(x=>!d.prev.includes(x))); } // tap: add / remove
     else if(!d.was){ SK.selSet=d.items.slice(); } // dragged an unselected object: it alone is selected
     skPaintTools(); skDraw(); return; }
@@ -1318,6 +1333,7 @@ function skAskDim(d,isNew){ skTEdit=null; skTDim=d; skTDimNew=isNew; skTDimO=d.o
   const og=Math.round(Math.abs(d.o!=null?d.o:45)/(1000/48)*2)/2; document.getElementById("skDimOff").value=og; document.getElementById("skDimOffV").textContent=fmtGd(og)+"gd"; skTIn.value=d.s||""; document.getElementById("skTxtDel").hidden=false;
   showPad(document.getElementById("skKp"),skTIn,"text");
   skTM.hidden=false; skDraw(); setTimeout(()=>skTIn.focus(),30); }
+document.getElementById("skDimMid").onclick=()=>{ if(!skTDim) return; delete skTDim.tx; delete skTDim.ty; skDraw(); };
 document.getElementById("skDimFlip").onclick=()=>{ if(!skTDim) return; skTDim.o=-(skTDim.o!=null?skTDim.o:-45); skDraw(); };
 document.getElementById("skDimOff").addEventListener("input",e=>{ if(!skTDim) return; const sg=(skTDim.o!=null?skTDim.o:-45)<0?-1:1; skTDim.o=sg*(+e.target.value)*(1000/48); document.getElementById("skDimOffV").textContent=fmtGd(+e.target.value)+"gd"; skDraw(); });
 document.getElementById("skTxtCancel").onclick=()=>{ skTM.hidden=true;
